@@ -173,6 +173,10 @@ int main(int argc, char** argv){
 	start_len = strnlen(start_path, PATH_MAX);
 
 	try_open(start_path, start_len);
+	if(path_next == 0){
+		fprintf(stderr, "%s: Unable to open %s\n", argv[0], start_path);
+		return 1;
+	}
 
 	initscr();
 	noecho();
@@ -188,9 +192,10 @@ int main(int argc, char** argv){
 		refresh();
 	}
 
+	endwin();
+
 	while(--depth >= 0){
 		closedir(dir_buffer[depth]);
 	}
-	endwin();
 	return 0;
 }
