@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <dirent.h>
 #include <string.h>
+#include <unistd.h>
 
 
 #define PATH_MAX 4096
@@ -19,13 +20,17 @@ DIR* dir_buffer[DIR_MAX];
 int depth;
 char last_file[FILE_MAX];
 int last_len;
+int show_hidden = 0;
 
 
 int ls(){
 	struct dirent *file;
 	int count = 0;
 	while((file = readdir(dir_buffer[depth-1])) != NULL){
-		if(file->d_name[0] == '.'){
+		if(!show_hidden && file->d_name[0] == '.'){
+			continue;
+		}
+		if(!strcmp(file->d_name, ".") || !strcmp(file->d_name, "..")){
 			continue;
 		}
 		printw(" [%c] %s\n", selected == count ? 'x' : ' ', file->d_name);
@@ -40,7 +45,10 @@ void get_hover(char* hover){
 	struct dirent *file;
 	int count = 0;
 	while((file = readdir(dir_buffer[depth-1])) != NULL){
-		if(file->d_name[0] == '.'){
+		if(!show_hidden && file->d_name[0] == '.'){
+			continue;
+		}
+		if(!strcmp(file->d_name, ".") || !strcmp(file->d_name, "..")){
 			continue;
 		}
 		if(count == selected){
@@ -71,8 +79,10 @@ void try_open(char* str, size_t str_len){
 	path_next += str_len;
 	strcpy(last_file, str);
 	last_len = str_len;
-	path[path_next++] = '/';
-	path[path_next] = 0;
+	if(path[path_next-1] != '/'){
+		path[path_next++] = '/';
+		path[path_next] = 0;
+	}
 }
 
 
@@ -113,7 +123,7 @@ void move_backwards(){
 }
 
 
-void move_cursor(int direction, int max){
+void update(int direction, int max){
 	switch(direction){
 		case 'j':
 			if(selected < max-1){
@@ -131,8 +141,22 @@ void move_cursor(int direction, int max){
 		case 'h':
 			move_backwards();
 			break;
+		case 's':
+			show_hidden = !show_hidden;
+			break;
 		default:
 			return;
+	}
+}
+
+
+void filter_input(char* input, char* buffer){
+	if(input[0] == '/'){
+		strncpy(buffer, input, sizeof(path));
+		buffer[PATH_MAX-1] = 0;
+	} else{
+		strcat(buffer, "/");
+		strcat(buffer, input);
 	}
 }
 
@@ -142,10 +166,9 @@ int main(int argc, char** argv){
 	char start_path[PATH_MAX] = {0};
 	size_t start_len;
 
-	start_path[0] = '.';
+	getcwd(start_path, PATH_MAX);
 	if(argc > 1){
-		strncpy(start_path, argv[1], sizeof(path));
-		start_path[PATH_MAX-1] = 0;
+		filter_input(argv[1], start_path);
 	}
 	start_len = strnlen(start_path, PATH_MAX);
 
@@ -154,19 +177,19 @@ int main(int argc, char** argv){
 	initscr();
 	noecho();
 	cbreak();
-	//WINDOW* win = newwin(LINES, COLS, 0, 0);
 
 	int file_count = ls();
+	mvprintw(LINES, 0, path);
 	while((action = getch()) != 'q'){
 		clear();
-		move_cursor(action, file_count);
+		update(action, file_count);
 		file_count = ls();
 		mvprintw(LINES, 0, path);
 		refresh();
 	}
 
-	for(int i = 0; i < depth; i++){
-		closedir(dir_buffer[i]);
+	while(--depth >= 0){
+		closedir(dir_buffer[depth]);
 	}
 	endwin();
 	return 0;
