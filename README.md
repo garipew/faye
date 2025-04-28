@@ -11,11 +11,4 @@ Or, alternatively, the path to the starting directory can be set on the first ar
 ```
 faye <path>
 ```
-In this case, the length of path follows the default on linux and defaults to 4096 characters. 
 
-## Milestones
-[x] Display files of current directory in screen
-[x] Move selector over files
-[x] Open/Expand directories
-[x] Move backwards on directories
-[ ] Change cwd on exit
