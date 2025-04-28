@@ -123,7 +123,8 @@ void move_backwards(){
 }
 
 
-void update(int direction, int max){
+int update(int direction, int max){
+	int fc;
 	switch(direction){
 		case 'j':
 			if(selected < max-1){
@@ -145,8 +146,12 @@ void update(int direction, int max){
 			show_hidden = !show_hidden;
 			break;
 		default:
-			return;
+			return max;
 	}
+	clear();
+	fc = ls();
+	mvprintw(LINES, 0, path);
+	return fc;
 }
 
 
@@ -185,10 +190,7 @@ int main(int argc, char** argv){
 	int file_count = ls();
 	mvprintw(LINES, 0, path);
 	while((action = getch()) != 'q'){
-		clear();
-		update(action, file_count);
-		file_count = ls();
-		mvprintw(LINES, 0, path);
+		file_count = update(action, file_count);
 		refresh();
 	}
 
