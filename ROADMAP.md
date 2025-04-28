@@ -9,4 +9,5 @@ This file describes the project roadmap, milestones are frequently updated.
 - [x] Improve directory cache
 - [ ] Expand file information
 - [ ] Open files via default openers 
+- [ ] Improve UI
 - [ ] Change cwd on exit

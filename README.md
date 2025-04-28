@@ -2,9 +2,9 @@
 Faye is a terminal-based file explorer.
 
 ## Build
-To build faye, use the Makefile available
+To build faye, use the build script
 ```
-make faye
+./build.sh
 ```
 
 ## Usage

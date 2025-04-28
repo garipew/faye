@@ -1,30 +1,19 @@
+#include "fdir.h"
 #include <ncurses.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <dirent.h>
 #include <string.h>
 #include <unistd.h>
 
 
-#define PATH_MAX 4096
-#define FILE_MAX 255
-#define COLS 30
-#define LINES 20
-#define DIR_MAX 20
-
-
-struct directory{
-	DIR* d_file;
-	char path[PATH_MAX];
-};
-
-char path[PATH_MAX];
-int path_next = 0;
-int selected = 0;
-struct directory dir_buffer[DIR_MAX];
-int depth = -1; // where you are on the buffer
-int dir_count; // where the next directory will be placed on buffer
-int show_hidden = 0;
+char path[FDIR_PATH_MAX];
+int path_next;
+int selected;
+struct directory dir_buffer[FDIR_MAX];
+int depth; // where current dir is on buffer
+int dir_count; // where next open dir will be placed on buffer
+int show_hidden;
+int depth = -1;
 
 
 int ls(){
@@ -50,7 +39,7 @@ void swap_entries(int a, int b){
 	dir_buffer[a].d_file = (DIR*)((unsigned long)dir_buffer[a].d_file ^ x_ptr);
 	dir_buffer[b].d_file = (DIR*)((unsigned long)dir_buffer[b].d_file ^ x_ptr);
 	
-	char swap_buffer[PATH_MAX];
+	char swap_buffer[FDIR_PATH_MAX];
 	size_t swap_len;
 	strcpy(swap_buffer, dir_buffer[a].path);
 	swap_len = strlen(swap_buffer);
@@ -77,8 +66,8 @@ void get_hover(char* hover){
 		count++;
 	}
 	rewinddir(dir_buffer[depth].d_file);
-	strncpy(hover, file->d_name, FILE_MAX);
-	hover[FILE_MAX-1] = 0;
+	strncpy(hover, file->d_name, FDIR_FILE_MAX);
+	hover[FDIR_FILE_MAX-1] = 0;
 }
 
 
@@ -87,7 +76,7 @@ int is_adjacent(){
 		depth--;
 		return 1;
 	}
-	if(depth < DIR_MAX-1 && !strcmp(dir_buffer[depth+1].path, path)){
+	if(depth < FDIR_MAX-1 && !strcmp(dir_buffer[depth+1].path, path)){
 		depth++;
 		return 1;
 	}
@@ -96,11 +85,11 @@ int is_adjacent(){
 
 
 void open_path(){
-	if(depth >= DIR_MAX){
+	if(depth >= FDIR_MAX){
 		for(int i = 0; i < 5; i++){
 			closedir(dir_buffer[i].d_file);
 		}
-		memmove(dir_buffer, dir_buffer+5, (DIR_MAX-5)*sizeof(*dir_buffer));
+		memmove(dir_buffer, dir_buffer+5, (FDIR_MAX-5)*sizeof(*dir_buffer));
 		depth-=5;
 		dir_count-=5;
 	}
@@ -148,7 +137,7 @@ int open_backwards(){
 
 //tries to open str and update path
 void try_open(char* str, size_t str_len){
-	if(str_len + path_next + 1 < PATH_MAX){
+	if(str_len + path_next + 1 < FDIR_PATH_MAX){
 		strcat(path, str);
 	}
 	open_path();
@@ -157,7 +146,7 @@ void try_open(char* str, size_t str_len){
 
 // open hovering directory
 void open_hover(){
-	char hover[FILE_MAX];
+	char hover[FDIR_FILE_MAX];
 	size_t hover_len;
 	get_hover(hover);
 	hover_len = strlen(hover);
@@ -216,7 +205,7 @@ int update(int direction, int max){
 	}
 	clear();
 	fc = ls();
-	mvprintw(LINES, 0, path);
+	mvprintw(FDIR_LINES, 0, path);
 	return fc;
 }
 
@@ -224,7 +213,7 @@ int update(int direction, int max){
 void filter_input(char* input, char* buffer){
 	if(input[0] == '/'){
 		strncpy(buffer, input, sizeof(path));
-		buffer[PATH_MAX-1] = 0;
+		buffer[FDIR_PATH_MAX-1] = 0;
 	} else{
 		strcat(buffer, "/");
 		strcat(buffer, input);
@@ -232,38 +221,3 @@ void filter_input(char* input, char* buffer){
 }
 
 
-int main(int argc, char** argv){
-	int action;
-	char start_path[PATH_MAX] = {0};
-	size_t start_len;
-
-	getcwd(start_path, PATH_MAX);
-	if(argc > 1){
-		filter_input(argv[1], start_path);
-	}
-	start_len = strnlen(start_path, PATH_MAX);
-
-	try_open(start_path, start_len);
-	if(path_next == 0){
-		fprintf(stderr, "%s: Unable to open %s\n", argv[0], start_path);
-		return 1;
-	}
-
-	initscr();
-	noecho();
-	cbreak();
-
-	int file_count = ls();
-	mvprintw(LINES, 0, path);
-	while((action = getch()) != 'q'){
-		file_count = update(action, file_count);
-		refresh();
-	}
-
-	endwin();
-
-	while(--depth >= 0){
-		closedir(dir_buffer[depth].d_file);
-	}
-	return 0;
-}
