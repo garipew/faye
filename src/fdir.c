@@ -56,13 +56,26 @@ void get_hover(char* hover){
 
 
 int is_adjacent(){
-	if(depth > 0 && !strcmp(dir_buffer[depth-1].path, path)){
-		depth--;
-		return 1;
+	int len;
+	if(depth > 0){
+		len = strlen(dir_buffer[depth-1].path);
+		dir_buffer[depth-1].path[len-1] = 0;
+		if(!strcmp(dir_buffer[depth-1].path, path)){
+			dir_buffer[depth-1].path[len-1] = '/';
+			depth--;
+			return 1;
+		}
+		dir_buffer[depth-1].path[len-1] = '/';
 	}
-	if(depth < FDIR_MAX-1 && !strcmp(dir_buffer[depth+1].path, path)){
-		depth++;
-		return 1;
+	if(depth < FDIR_MAX-1){
+		len = strlen(dir_buffer[depth+1].path);
+		dir_buffer[depth+1].path[len-1] = 0;
+		if(!strcmp(dir_buffer[depth+1].path, path)){
+			dir_buffer[depth+1].path[len-1] = '/';
+			depth++;
+			return 1;
+		}
+		dir_buffer[depth+1].path[len-1] = '/';
 	}
 	return 0;
 }
@@ -77,7 +90,9 @@ void open_path(){
 		depth-=5;
 		dir_count-=5;
 	}
-	if(is_adjacent()){
+	if(depth >= 0 && is_adjacent()){
+		selected = 0;
+		strcpy(path, dir_buffer[depth].path);
 		return;
 	}
 	while(depth != dir_count-1){
