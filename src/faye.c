@@ -14,6 +14,10 @@ int main(int argc, char** argv){
 		filter_input(argv[1], path);
 	}
 	path_next = strnlen(path, FDIR_PATH_MAX);
+	if(path[path_next-1] != '/'){
+		path[path_next++] = '/';
+		path[path_next] = 0;
+	}
 
 	open_path();
 	if(!dir_buffer[0].d_file){

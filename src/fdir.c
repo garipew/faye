@@ -34,9 +34,25 @@ int ls(){
 }
 
 
-void get_hover(char* hover){
+int get_return(){
+	char* prev;
+	path[--path_next] = 0;
+	prev = strrchr(path, '/');	
+	if(!prev){
+		path[path_next++] = '/';
+		return 0;
+	}
+	prev++;	
+	memset(prev, 0, path_next + path - prev);	
+	return 1;
+}
+
+
+int get_hover(){
 	struct dirent *file;
 	int count = 0;
+	char hover[FDIR_FILE_MAX] = {0};
+	int hover_len;
 	while((file = readdir(dir_buffer[depth].d_file)) != NULL){
 		if(!show_hidden && file->d_name[0] == '.'){
 			continue;
@@ -49,163 +65,88 @@ void get_hover(char* hover){
 		}
 		count++;
 	}
+	if(!file){
+		return 0;
+	}
 	rewinddir(dir_buffer[depth].d_file);
 	strncpy(hover, file->d_name, FDIR_FILE_MAX);
-	hover[FDIR_FILE_MAX-1] = 0;
+	hover_len = strnlen(hover, FDIR_FILE_MAX);
+	if(hover[hover_len-1] != '/'){
+		hover[hover_len] = '/';
+	}
+	strcat(path, hover);
+	return 1;
 }
 
 
-int is_adjacent(){
-	int len;
-	if(depth > 0){
-		len = strlen(dir_buffer[depth-1].path);
-		dir_buffer[depth-1].path[len-1] = 0;
-		if(!strcmp(dir_buffer[depth-1].path, path)){
-			dir_buffer[depth-1].path[len-1] = '/';
-			depth--;
+int check_cache(){
+	for(int i = 0; i < dir_count; i++){
+		if(!strcmp(path, dir_buffer[i].path)){
+			depth = i;
+			selected = 0;
+			// path found on cache, update path_next
+			path_next = strlen(path);
 			return 1;
 		}
-		dir_buffer[depth-1].path[len-1] = '/';
-	}
-	if(depth < FDIR_MAX-1){
-		len = strlen(dir_buffer[depth+1].path);
-		dir_buffer[depth+1].path[len-1] = 0;
-		if(!strcmp(dir_buffer[depth+1].path, path)){
-			dir_buffer[depth+1].path[len-1] = '/';
-			depth++;
-			return 1;
-		}
-		dir_buffer[depth+1].path[len-1] = '/';
 	}
 	return 0;
 }
 
 
 void open_path(){
-	if(depth >= FDIR_MAX){
-		for(int i = 0; i < 5; i++){
-			closedir(dir_buffer[i].d_file);
-		}
-		memmove(dir_buffer, dir_buffer+5, (FDIR_MAX-5)*sizeof(*dir_buffer));
-		depth-=5;
-		dir_count-=5;
-	}
-	if(depth >= 0 && is_adjacent()){
-		selected = 0;
-		strcpy(path, dir_buffer[depth].path);
+	if(dir_count >= FDIR_MAX){
+		// buffer full
 		return;
 	}
-	while(depth != dir_count-1){
-		closedir(dir_buffer[--dir_count].d_file);
-	}
-	dir_buffer[dir_count].d_file = opendir(path);
+	dir_buffer[dir_count].d_file = opendir(path);	
 	if(!dir_buffer[dir_count].d_file){
-		path[path_next] = 0;
+		// unable to open path, drop filename
+		memset(path+path_next, 0, FDIR_PATH_MAX-path_next);
 		return;
-	}
+	}	
+	path_next = strlen(path); // opened path, update path_next
 	selected = 0;
-	depth++;
-	dir_count++;
-	path_next = strlen(path);
-	if(path[path_next-1] != '/'){
-		path[path_next++] = '/';
-		path[path_next] = 0;
-	}
-	strcpy(dir_buffer[depth].path, path);
-	dir_buffer[depth].path[path_next] = 0;
+	depth = dir_count;
+	strcpy(dir_buffer[dir_count].path, path);
+	dir_count++;	
 }
 
 
-int open_backwards(){
-	if(depth >= FDIR_MAX){
-		// checking MUST be done before open_path() since counters are modified in this function 
-		for(int i = 0; i < 5; i++){
-			closedir(dir_buffer[i].d_file);
-		}
-		memmove(dir_buffer, dir_buffer+5, (FDIR_MAX-5)*sizeof(*dir_buffer));
-		depth-=5;
-		dir_count-=5;
+void close_dir(){
+	closedir(dir_buffer[depth].d_file);
+	dir_count--;
+	memmove(&dir_buffer[depth], &dir_buffer[depth+1], (dir_count - depth)*sizeof(dir_buffer[depth]));
+	if(depth == dir_count){
+		depth--;
 	}
-	strcpy(path, dir_buffer[depth].path);
-	path_next = strnlen(path, FDIR_PATH_MAX);
-	path[path_next] = 0;
-	char* dir_name;
-	int hold;
-	path[path_next-1] = 0;	
-	dir_name = strrchr(path, '/');
-	if(!dir_name){
-		path[path_next-1] = '/';
-		return 1;
-	}
-	if(dir_name == path){
-		dir_name++;
-	}
-	int before_dir_name = dir_name - path;
-	memset(dir_name, 0, path_next - before_dir_name);
-	memmove(&dir_buffer[depth+1], &dir_buffer[depth], (dir_count-depth)*sizeof(*dir_buffer));
-	hold = dir_count+1;
-	depth--;
-	dir_count = depth+1;
-	open_path();
-	dir_count = hold;
-	return 0;
-}
-
-
-//tries to open str and update path
-void try_open(char* str, size_t str_len){
-	if(str_len + path_next + 1 < FDIR_PATH_MAX){
-		strcat(path, str);
-	}
-	open_path();
-}
-
-
-// open hovering directory
-void open_hover(){
-	char hover[FDIR_FILE_MAX];
-	size_t hover_len;
-	get_hover(hover);
-	hover_len = strlen(hover);
-	
-	try_open(hover, hover_len);
-}
-
-
-// checks if a is inside b
-int is_inside(char* a, char* b){
-	size_t b_len = strlen(b);
-	return strlen(a) > b_len && !strncmp(a, b, b_len); 	
-}
-
-
-// go back one directory, tries to exhaust buffer first
-void move_backwards(){
-	if(depth > 0 && is_inside(dir_buffer[depth].path, dir_buffer[depth-1].path)){
-	// currently not on first directory and current is inside previous in buffer
-		selected = 0;
-		strcpy(path, dir_buffer[--depth].path);
-	} else{
-	// currently on first directory or current is not inside previous in buffer
-		open_backwards();
-	}
-
 }
 
 
 int update(int direction, int max){
 	int fc;
 	switch(direction){
+		case 'c':
+			if(dir_count > 1){
+				close_dir();
+				selected = 0;
+				strcpy(path, dir_buffer[depth].path);
+				path_next = strlen(path);
+			}
+			break;
 		case 'J':
 			if(depth < dir_count-1){
 				depth++;
+				selected = 0;
 				strcpy(path, dir_buffer[depth].path);
+				path_next = strlen(path);
 			}
 			break;
 		case 'K':
 			if(depth > 0){
 				depth--;
+				selected = 0;
 				strcpy(path, dir_buffer[depth].path);
+				path_next = strlen(path);
 			}
 			break;
 		case 'j':
@@ -219,10 +160,14 @@ int update(int direction, int max){
 			}
 			break;
 		case 'l':
-			open_hover();
+			if(get_hover() && !check_cache()){
+				open_path();
+			}
 			break;
 		case 'h':
-			move_backwards();
+			if(get_return() && !check_cache()){
+				open_path();
+			}
 			break;
 		case 's':
 			show_hidden = !show_hidden;
@@ -249,5 +194,4 @@ void filter_input(char* input, char* buffer){
 		strcat(buffer, input);
 	}
 }
-
 
