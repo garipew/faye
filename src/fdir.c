@@ -196,6 +196,18 @@ void move_backwards(){
 int update(int direction, int max){
 	int fc;
 	switch(direction){
+		case 'J':
+			if(depth < dir_count-1){
+				depth++;
+				strcpy(path, dir_buffer[depth].path);
+			}
+			break;
+		case 'K':
+			if(depth > 0){
+				depth--;
+				strcpy(path, dir_buffer[depth].path);
+			}
+			break;
 		case 'j':
 			if(selected < max-1){
 				selected++;
@@ -221,6 +233,9 @@ int update(int direction, int max){
 	clear();
 	fc = ls();
 	mvprintw(FDIR_LINES, 0, path);
+	for(int i = 0; i < dir_count; i++){
+		mvprintw(i, FDIR_COLS, "[%c] %s\n", i == depth ? 'x' : ' ', dir_buffer[i].path);
+	}
 	return fc;
 }
 
