@@ -33,8 +33,8 @@ int main(int argc, char** argv){
 
 	endwin();
 
-	while(--depth >= 0){
-		closedir(dir_buffer[depth].d_file);
+	while(--dir_count >= 0){
+		closedir(dir_buffer[dir_count].d_file);
 	}
 	return 0;
 }

@@ -19,7 +19,7 @@ struct directory{
 extern char path[FDIR_PATH_MAX];
 extern int path_next;
 extern struct directory dir_buffer[FDIR_MAX];
-extern int depth; 
+extern int dir_count; 
 
 int ls();
 int update(int, int);

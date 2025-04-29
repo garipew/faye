@@ -34,22 +34,6 @@ int ls(){
 }
 
 
-void swap_entries(int a, int b){
-	unsigned long x_ptr = (unsigned long)dir_buffer[a].d_file ^ (unsigned long)dir_buffer[b].d_file;
-	dir_buffer[a].d_file = (DIR*)((unsigned long)dir_buffer[a].d_file ^ x_ptr);
-	dir_buffer[b].d_file = (DIR*)((unsigned long)dir_buffer[b].d_file ^ x_ptr);
-	
-	char swap_buffer[FDIR_PATH_MAX];
-	size_t swap_len;
-	strcpy(swap_buffer, dir_buffer[a].path);
-	swap_len = strlen(swap_buffer);
-	strcpy(dir_buffer[a].path, dir_buffer[b].path);
-	dir_buffer[a].path[strlen(dir_buffer[b].path)] = 0;
-	strcpy(dir_buffer[b].path, dir_buffer[a].path);
-	dir_buffer[b].path[swap_len] = 0;
-}
-
-
 void get_hover(char* hover){
 	struct dirent *file;
 	int count = 0;
@@ -93,12 +77,11 @@ void open_path(){
 		depth-=5;
 		dir_count-=5;
 	}
-	if((depth > 0 && is_adjacent())){
+	if(is_adjacent()){
 		return;
 	}
 	while(depth != dir_count-1){
-		closedir(dir_buffer[dir_count-1].d_file);
-		dir_count--;
+		closedir(dir_buffer[--dir_count].d_file);
 	}
 	dir_buffer[dir_count].d_file = opendir(path);
 	if(!dir_buffer[dir_count].d_file){
@@ -114,24 +97,43 @@ void open_path(){
 		path[path_next] = 0;
 	}
 	strcpy(dir_buffer[depth].path, path);
+	dir_buffer[depth].path[path_next] = 0;
 }
 
 
 int open_backwards(){
-	char* prev;
+	if(depth >= FDIR_MAX){
+		// checking MUST be done before open_path() since counters are modified in this function 
+		for(int i = 0; i < 5; i++){
+			closedir(dir_buffer[i].d_file);
+		}
+		memmove(dir_buffer, dir_buffer+5, (FDIR_MAX-5)*sizeof(*dir_buffer));
+		depth-=5;
+		dir_count-=5;
+	}
+	strcpy(path, dir_buffer[depth].path);
+	path_next = strnlen(path, FDIR_PATH_MAX);
+	path[path_next] = 0;
+	char* dir_name;
+	int hold;
 	path[path_next-1] = 0;	
-	prev = strrchr(path, '/');
-	if(!prev){
-		path[path_next] = '/';
+	dir_name = strrchr(path, '/');
+	if(!dir_name){
+		path[path_next-1] = '/';
 		return 1;
 	}
-	if(prev == path){
-		prev++;
+	if(dir_name == path){
+		dir_name++;
 	}
-	*prev = 0;
+	int before_dir_name = dir_name - path;
+	memset(dir_name, 0, path_next - before_dir_name);
+	memmove(&dir_buffer[depth+1], &dir_buffer[depth], (dir_count-depth)*sizeof(*dir_buffer));
+	hold = dir_count+1;
+	depth--;
+	dir_count = depth+1;
 	open_path();
+	dir_count = hold;
 	return 0;
-
 }
 
 
@@ -165,14 +167,12 @@ int is_inside(char* a, char* b){
 // go back one directory, tries to exhaust buffer first
 void move_backwards(){
 	if(depth > 0 && is_inside(dir_buffer[depth].path, dir_buffer[depth-1].path)){
-	// more than one file opened and current is inside previous in buffer
+	// currently not on first directory and current is inside previous in buffer
 		selected = 0;
 		strcpy(path, dir_buffer[--depth].path);
 	} else{
-	// one file opened or current is not inside previous in buffer
+	// currently on first directory or current is not inside previous in buffer
 		open_backwards();
-		swap_entries(depth, depth-1);
-		depth--;
 	}
 
 }
