@@ -43,5 +43,6 @@ int main(int argc, char** argv){
 	while(--dir_count >= 0){
 		closedir(dir_buffer[dir_count].d_file);
 	}
+	free(bar.buffer);
 	return 0;
 }
