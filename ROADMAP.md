@@ -7,6 +7,7 @@ This file describes the project roadmap, milestones are frequently updated.
 - [x] Move backwards on directories
 - [x] Reduce amount of drawings on screen
 - [x] Improve directory cache
+- [x] Add command bar
 - [ ] Expand file information
 - [ ] Open files via default openers 
 - [ ] Improve UI
