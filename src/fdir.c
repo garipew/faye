@@ -141,6 +141,7 @@ void read_cmd(){
 	int character;
 
 	memset(bar.buffer, 0, bar.buffer_len);
+	bar.buffer_len = 0;
 	nocbreak();
 	echo();
 	move(FDIR_LINES+1, 0);
@@ -210,7 +211,6 @@ int update(int direction, int max){
 	int pid;
 	switch(direction){
 		case ':':
-			bar.buffer_len = 0;
 			read_cmd();
 			if(bar.buffer[0] == '!'){
 				endwin();
