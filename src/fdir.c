@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 
 char path[FDIR_PATH_MAX];
@@ -14,6 +15,7 @@ int depth; // where current dir is on buffer
 int dir_count; // where next open dir will be placed on buffer
 int show_hidden;
 int depth = -1;
+struct cmd bar;
 
 
 int ls(){
@@ -122,9 +124,112 @@ void close_dir(){
 }
 
 
+int initialize_cmd_bar(struct cmd* bar){
+	bar->buffer_size = 100;
+	bar->buffer_len = 0;
+	bar->buffer = malloc(bar->buffer_size);
+	if(!bar->buffer){
+		fprintf(stderr, "faye: Unable to allocate cmd buffer\n");
+		return 0;
+	}
+	return 1;
+}
+
+
+void read_cmd(){
+	char *new_buffer;
+	int character;
+
+	memset(bar.buffer, 0, bar.buffer_len);
+	nocbreak();
+	echo();
+	move(FDIR_LINES+1, 0);
+	addch(':');
+	while((character=getch()) != 0 && character != '\n'){
+		refresh();
+		if(bar.buffer_len >= bar.buffer_size){
+			bar.buffer_size*=2;
+			new_buffer = realloc(bar.buffer, bar.buffer_size);
+			if(!new_buffer){
+				fprintf(stderr, "faye: Unable to expand cmd buffer\n");
+				break;
+			}
+			bar.buffer = new_buffer;
+		}		
+		bar.buffer[bar.buffer_len++] = character;	
+	}
+	if(bar.buffer[bar.buffer_len-1] == '\n'){
+		bar.buffer[bar.buffer_len-1] = 0;
+	}
+	cbreak();
+	noecho();
+	move(0, 0);
+}
+
+
+int strcnt(char* haystack, char needle){
+	int c = 0;
+	while(*haystack){
+		if(*haystack == needle){
+			c++;
+		}
+		haystack++;
+	}
+	return c;
+}
+
+
+int execute_bar(){
+	int argc = strcnt(bar.buffer, ' ')+1;
+	char** argv;
+	if(argc < 1){
+		return -1;
+	}
+	argv = malloc(sizeof(*argv)*(1+argc));
+	if(!argv){
+		return -2;
+	}
+	argv[argc] = NULL;
+	while(argc--){
+		argv[argc] = strrchr(bar.buffer, ' ');
+		if(!argv[argc]){
+			argv[argc] = bar.buffer+1; // exclude the initial !
+			break;
+		}
+		argv[argc][0] = 0;
+		argv[argc]++;
+	}
+	execvp(argv[0], argv);
+	free(argv);
+	return -3;	
+}
+
+
 int update(int direction, int max){
 	int fc;
+	int pid;
 	switch(direction){
+		case ':':
+			bar.buffer_len = 0;
+			read_cmd();
+			if(bar.buffer[0] == '!'){
+				endwin();
+				pid = fork();
+				if(pid == 0){
+					chdir(path);
+					execute_bar();		
+					fprintf(stderr, "faye: Failed to execute %s\n", bar.buffer);
+					exit(-2);
+				} else if(pid > 0){
+					waitpid(pid, NULL, 0);
+					printf("\nPress any key to return to faye\n");
+					getchar();
+				} else{
+					fprintf(stderr, "faye: Unable to fork\n");
+				}
+				refresh();
+			}
+			break;
 		case 'c':
 			if(dir_count > 1){
 				close_dir();

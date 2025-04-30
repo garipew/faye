@@ -16,13 +16,22 @@ struct directory{
 };
 
 
+struct cmd{
+	char* buffer;
+	int buffer_size;
+	int buffer_len;
+};
+
+
 extern char path[FDIR_PATH_MAX];
 extern int path_next;
 extern struct directory dir_buffer[FDIR_MAX];
 extern int dir_count; 
+extern struct cmd bar;
 
 int ls();
 int update(int, int);
 void open_path();
 void filter_input(char*, char*);
+int initialize_cmd_bar(struct cmd*);
 #endif

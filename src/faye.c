@@ -9,6 +9,9 @@
 int main(int argc, char** argv){
 	int action;
 
+	if(!initialize_cmd_bar(&bar)){
+		return 1;
+	}
 	getcwd(path, FDIR_PATH_MAX);
 	if(argc > 1){
 		filter_input(argv[1], path);
