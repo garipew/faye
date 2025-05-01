@@ -73,10 +73,10 @@ int get_hover(){
 	rewinddir(dir_buffer[depth].d_file);
 	strncpy(hover, file->d_name, FDIR_FILE_MAX);
 	hover_len = strnlen(hover, FDIR_FILE_MAX);
-	if(hover[hover_len-1] != '/'){
+	if(hover_len < FDIR_FILE_MAX && hover[hover_len-1] != '/'){
 		hover[hover_len] = '/';
 	}
-	strcat(path, hover);
+	strncpy(path+path_next, hover, PATH_MAX-path_next);
 	return 1;
 }
 
@@ -292,7 +292,7 @@ int update(int direction, int max){
 
 void filter_input(char* input, char* buffer){
 	if(input[0] == '/'){
-		strncpy(buffer, input, sizeof(path));
+		strncpy(buffer, input, FDIR_PATH_MAX);
 		buffer[FDIR_PATH_MAX-1] = 0;
 	} else{
 		strcat(buffer, "/");
