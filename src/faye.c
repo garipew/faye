@@ -1,4 +1,4 @@
-#include "fdir.h"
+#include "navigation.h"
 #include <ncurses.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -9,22 +9,25 @@
 int main(int argc, char** argv){
 	int action;
 
-	if(!initialize_cmd_bar(&bar)){
+	if(!initialize_cmd(&ed)){
 		return 1;
 	}
-	getcwd(path, FDIR_PATH_MAX);
+	initialize_cache(&ein);
+	initialize_navigator(&jet);
+
+	getcwd(jet.cwd, FAYE_PATH_MAX);
 	if(argc > 1){
-		filter_input(argv[1], path);
+		filter_input(argv[1], jet.cwd);
 	}
-	path_next = strnlen(path, FDIR_PATH_MAX);
-	if(path[path_next-1] != '/'){
-		path[path_next++] = '/';
-		path[path_next] = 0;
+	jet.cwd_len = strnlen(jet.cwd, FAYE_PATH_MAX);
+	if(jet.cwd_len < FAYE_PATH_MAX-1 && jet.cwd[jet.cwd_len-1] != '/'){
+		jet.cwd[jet.cwd_len++] = '/';
+		jet.cwd[jet.cwd_len] = 0;
 	}
 
 	open_path();
-	if(!dir_buffer[0].d_file){
-		fprintf(stderr, "%s: Unable to open %s\n", argv[0], path);
+	if(!ein.dir_buffer[0].d_file){
+		fprintf(stderr, "%s: Unable to open %s\n", argv[0], jet.cwd);
 		return 1;
 	}
 
@@ -40,9 +43,9 @@ int main(int argc, char** argv){
 
 	endwin();
 
-	while(--dir_count >= 0){
-		closedir(dir_buffer[dir_count].d_file);
+	while(--ein.next >= 0){
+		closedir(ein.dir_buffer[ein.next].d_file);
 	}
-	free(bar.buffer);
+	free(ed.buffer);
 	return 0;
 }
