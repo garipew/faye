@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 
 
+char bookmark[FDIR_PATH_MAX];
 char path[FDIR_PATH_MAX];
 int path_next;
 int selected;
@@ -32,6 +33,7 @@ int ls(){
 		count++;
 	}
 	rewinddir(dir_buffer[depth].d_file);
+	mvprintw(FDIR_LINES+2, 0, bookmark);
 	return count;
 }
 
@@ -181,7 +183,12 @@ int strcnt(char* haystack, char needle){
 
 
 int execute_bar(){
-	int argc = strcnt(bar.buffer, ' ')+1;
+	int argc;
+	if(bookmark[0]){
+		argc = 2;
+	}else{
+		argc = strcnt(bar.buffer, ' ')+1;
+	}
 	char** argv;
 	if(argc < 1){
 		return -1;
@@ -191,14 +198,19 @@ int execute_bar(){
 		return -2;
 	}
 	argv[argc] = NULL;
-	while(argc--){
-		argv[argc] = strrchr(bar.buffer, ' ');
-		if(!argv[argc]){
-			argv[argc] = bar.buffer+1; // exclude the initial !
-			break;
+	if(bookmark[0]){
+		argv[0] = bar.buffer+1;
+		argv[1] = bookmark;
+	} else{
+		while(argc--){
+			argv[argc] = strrchr(bar.buffer, ' ');
+			if(!argv[argc]){
+				argv[argc] = bar.buffer+1; // exclude the initial !
+				break;
+			}
+			argv[argc][0] = 0;
+			argv[argc]++;
 		}
-		argv[argc][0] = 0;
-		argv[argc]++;
 	}
 	execvp(argv[0], argv);
 	free(argv);
@@ -210,6 +222,18 @@ int update(int direction, int max){
 	int fc;
 	int pid;
 	switch(direction){
+		case 'f':
+			// free bookmark
+			bookmark[0] = 0;
+			break;
+		case 'b':
+			// bookmark file
+			if(get_hover()){
+				strcpy(bookmark, path);
+				bookmark[strlen(bookmark)-1] = 0;
+				path[path_next] = 0;
+			}
+			break;
 		case ':':
 			read_cmd();
 			if(bar.buffer[0] == '!'){
