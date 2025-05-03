@@ -1,4 +1,5 @@
 #include "navigation.h"
+#include "screen.h"
 #include <ncurses.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -157,6 +158,7 @@ int update(int direction, int max){
 				pid = fork();
 				if(pid == 0){
 					chdir(jet.cwd);
+					dup2(fileno(faye_out), fileno(stdout));
 					execute_cmd();		
 					fprintf(stderr, "faye: Failed to execute %s\n", ed.buffer);
 					exit(-2);

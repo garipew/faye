@@ -46,12 +46,14 @@ int main(int argc, char** argv){
 
 	endwin();
 	delscreen(faye_screen);
-	unset_output();
 
 	while(--ein.next >= 0){
 		closedir(ein.dir_buffer[ein.next].d_file);
 	}
 	free(ed.buffer);
-	fprintf(stdout, jet.cwd);
+	if(faye_out != stdout){
+		fprintf(stdout, jet.cwd);
+	}
+	unset_output();
 	return 0;
 }
