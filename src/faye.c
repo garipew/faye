@@ -1,4 +1,5 @@
 #include "navigation.h"
+#include "screen.h"
 #include <ncurses.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -7,6 +8,9 @@
 
 
 int main(int argc, char** argv){
+	if(start_screen() < 0){
+		return -1;
+	}
 	int action;
 
 	if(!initialize_cmd(&ed)){
@@ -31,7 +35,6 @@ int main(int argc, char** argv){
 		return 1;
 	}
 
-	initscr();
 	noecho();
 	cbreak();
 
@@ -42,10 +45,13 @@ int main(int argc, char** argv){
 	}while((action = getch()) != 'q');
 
 	endwin();
+	delscreen(faye_screen);
+	unset_output();
 
 	while(--ein.next >= 0){
 		closedir(ein.dir_buffer[ein.next].d_file);
 	}
 	free(ed.buffer);
+	fprintf(stdout, jet.cwd);
 	return 0;
 }
