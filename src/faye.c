@@ -11,46 +11,42 @@ int main(int argc, char** argv){
 	if(start_screen() < 0){
 		return -1;
 	}
+
 	int action;
+	char* path = NULL;
+	if(argc > 1){
+		path = argv[1];
+	}
 
 	if(!initialize_cmd(&ed)){
+		endwin();
+		delscreen(faye_screen);
 		return 1;
 	}
 	initialize_cache(&ein);
-	initialize_navigator(&jet);
+	initialize_navigator(&jet, path);
 
-	getcwd(jet.cwd, FAYE_PATH_MAX);
-	if(argc > 1){
-		filter_input(argv[1], jet.cwd);
-	}
-	jet.cwd_len = strnlen(jet.cwd, FAYE_PATH_MAX);
-	if(jet.cwd_len < FAYE_PATH_MAX-1 && jet.cwd[jet.cwd_len-1] != '/'){
-		jet.cwd[jet.cwd_len++] = '/';
-		jet.cwd[jet.cwd_len] = 0;
-	}
-
-	open_path();
-	if(!ein.dir_buffer[0].d_file){
-		fprintf(stderr, "%s: Unable to open %s\n", argv[0], jet.cwd);
+	if(open_path() != 0){
+		free_cmd(&ed);
+		endwin();
+		delscreen(faye_screen);
+		fprintf(stderr, "Unable to open %s\n", jet.cwd);
 		return 1;
 	}
 
 	noecho();
 	cbreak();
 
-	int file_count = ls();
+	int file_count = load_files();
 	do{
 		file_count = update(action, file_count);
-		refresh();
 	}while((action = getch()) != 'q');
 
 	endwin();
 	delscreen(faye_screen);
 
-	while(--ein.next >= 0){
-		closedir(ein.dir_buffer[ein.next].d_file);
-	}
-	free(ed.buffer);
+	free_cache(&ein);
+	free_cmd(&ed);
 	if(faye_out != stdout){
 		fprintf(stdout, jet.cwd);
 	}

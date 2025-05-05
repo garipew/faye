@@ -1,48 +1,95 @@
-#include "navigation.h"
-#include "screen.h"
 #include <ncurses.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include "screen.h"
+#include "navigation.h"
 
 
 struct navigator jet;
 struct cache ein;
 
 
-void initialize_navigator(struct navigator* n){
+void free_cache(struct cache* c){
+	if(c->filenames){
+		for(int i = 0; i < c->files; i++){
+			free(c->filenames[i]);
+		}
+		free(c->filenames);
+	}
+	for(int i = 0; i < c->next; i++){
+		closedir(c->dir_buffer[i].d_file);
+	}
+}
+
+
+void initialize_navigator(struct navigator* n, char* path){
 	memset(n->cwd, 0, FAYE_PATH_MAX);
-	n->cwd_len = 0;
+	if(!path){
+		getcwd(n->cwd, FAYE_PATH_MAX);
+	}else{
+		strncpy(n->cwd, path, FAYE_PATH_MAX);
+	}
+	n->cwd_len = strlen(n->cwd);
+	if(n->cwd_len < FAYE_PATH_MAX && n->cwd[n->cwd_len-1] != '/'){
+		n->cwd[n->cwd_len] = '/';
+		n->cwd_len++;
+	}
 	n->selected = 0;
 	n->show_hidden = 0;
 }
 
 
-void initialize_cache(struct cache* c){
+int initialize_cache(struct cache* c){
 	memset(c->dir_buffer, 0, sizeof(c->dir_buffer[0]) * FAYE_MAX);
 	c->depth = -1;
 	c->next = 0;
+	
+	c->file_slots = 10; 
+	c->files = 0;
+	c->filenames = malloc(sizeof(*c->filenames)*c->file_slots);
+	if(!c->filenames){
+		fprintf(stderr, "faye: Unable to initialize cache\n");
+		return -1;
+	}
+	memset(c->filenames, 0, c->file_slots*sizeof(*c->filenames));
+	return 0;
 }
 
 
-int ls(){
+int load_files(){
 	struct dirent *file;
-	int count = 0;
+	char** new_buffer;
+	ein.files = 0;
 	while((file = readdir(ein.dir_buffer[ein.depth].d_file)) != NULL){
-		if(!jet.show_hidden && file->d_name[0] == '.'){
-			continue;
-		}
 		if(!strcmp(file->d_name, ".") || !strcmp(file->d_name, "..")){
 			continue;
 		}
-		printw(" [%c] %s\n", jet.selected == count ? 'x' : ' ', file->d_name);
-		count++;
+		if(ein.files >= ein.file_slots){
+			ein.file_slots*=2; 
+			new_buffer = realloc(ein.filenames, sizeof(*ein.filenames)*ein.file_slots);
+			if(!new_buffer){
+				fprintf(stderr, "faye: Unable to expand cache.\n");
+				ein.file_slots/=2; 
+				break;
+			}	
+			ein.filenames = new_buffer;
+			memset(ein.filenames+ein.files, 0, sizeof(*ein.filenames)*(ein.file_slots-ein.files+1));
+		} 	
+		if(!ein.filenames[ein.files]){
+			ein.filenames[ein.files] = malloc(FAYE_FILE_MAX);
+			if(!ein.filenames[ein.files]){
+				fprintf(stderr, "faye: Unable to expand cache.\n");
+				break;
+			}
+		}
+		strcpy(ein.filenames[ein.files], file->d_name);
+		ein.files++;	
 	}
 	rewinddir(ein.dir_buffer[ein.depth].d_file);
-	mvprintw(FAYE_LINES+2, 0, ed.bookmark);
-	return count;
+	return ein.files;
 }
 
 
@@ -60,34 +107,19 @@ int get_return(){
 }
 
 
-int get_hover(){
-	struct dirent *file;
-	int count = 0;
-	char hover[FAYE_FILE_MAX] = {0};
-	int hover_len;
-	while((file = readdir(ein.dir_buffer[ein.depth].d_file)) != NULL){
-		if(!jet.show_hidden && file->d_name[0] == '.'){
-			continue;
+char* get_hover(){
+	int selected = 0;
+	int absolute = 0;
+	while(selected <= jet.selected){
+		fprintf(stderr, "Not %s\n", ein.filenames[absolute]);
+		if(!jet.show_hidden && ein.filenames[absolute][0] == '.'){
+			absolute++;
+			continue; // skip hidden
 		}
-		if(!strcmp(file->d_name, ".") || !strcmp(file->d_name, "..")){
-			continue;
-		}
-		if(count == jet.selected){
-			break;
-		}
-		count++;
+		selected++;
+		absolute++;
 	}
-	if(!file){
-		return 0;
-	}
-	rewinddir(ein.dir_buffer[ein.depth].d_file);
-	strncpy(hover, file->d_name, FAYE_FILE_MAX);
-	hover_len = strnlen(hover, FAYE_FILE_MAX);
-	if(hover_len < FAYE_FILE_MAX && hover[hover_len-1] != '/'){
-		hover[hover_len] = '/';
-	}
-	strncpy(jet.cwd+jet.cwd_len, hover, PATH_MAX-jet.cwd_len);
-	return 1;
+	return ein.filenames[absolute-1];
 }
 
 
@@ -105,22 +137,23 @@ int check_cache(){
 }
 
 
-void open_path(){
+int open_path(){
 	if(ein.next >= FAYE_MAX){
-		// buffer full
-		return;
+		fprintf(stderr, "faye: Too many open tabs\n");
+		return -1;
 	}
 	ein.dir_buffer[ein.next].d_file = opendir(jet.cwd);	
 	if(!ein.dir_buffer[ein.next].d_file){
-		// unable to open path, drop filename
+		fprintf(stderr, "faye: Unable to open %s\n", jet.cwd);
 		memset(jet.cwd+jet.cwd_len, 0, FAYE_PATH_MAX-jet.cwd_len);
-		return;
+		return -2;
 	}	
 	jet.cwd_len = strlen(jet.cwd); // opened path, update jet.cwd_len
 	jet.selected = 0;
 	ein.depth = ein.next;
 	strcpy(ein.dir_buffer[ein.next].path, jet.cwd);
 	ein.next++;	
+	return 0;
 }
 
 
@@ -134,10 +167,27 @@ void close_dir(){
 }
 
 
+int print_files(int x, int y){
+	if(ein.files == 0){
+		return 0;
+	}
+	int line = 0;
+	for(int i = 0; i < ein.files; i++){
+		if(!jet.show_hidden && ein.filenames[i][0] == '.'){
+			continue;
+		}
+		mvprintw(y+line, x, ein.filenames[i]);	
+		line++;
+	}
+	return line;
+}
+
+
 int update(int direction, int max){
-	int fc;
+	int fc = -1;
 	int pid;
 	int c;
+	char* hover;
 	switch(direction){
 		case 'f':
 			// free ed.bookmark
@@ -145,11 +195,8 @@ int update(int direction, int max){
 			break;
 		case 'b':
 			// ed.bookmark file
-			if(get_hover()){
-				strcpy(ed.bookmark, jet.cwd);
-				ed.bookmark[strlen(ed.bookmark)-1] = 0;
-				jet.cwd[jet.cwd_len] = 0;
-			}
+			strcpy(ed.bookmark, jet.cwd);
+			strcat(ed.bookmark, get_hover());
 			break;
 		case ':':
 			read_cmd();
@@ -187,6 +234,7 @@ int update(int direction, int max){
 				jet.selected = 0;
 				strcpy(jet.cwd, ein.dir_buffer[ein.depth].path);
 				jet.cwd_len = strlen(jet.cwd);
+				load_files();
 			}
 			break;
 		case 'K':
@@ -195,6 +243,7 @@ int update(int direction, int max){
 				jet.selected = 0;
 				strcpy(jet.cwd, ein.dir_buffer[ein.depth].path);
 				jet.cwd_len = strlen(jet.cwd);
+				load_files();
 			}
 			break;
 		case 'j':
@@ -208,13 +257,15 @@ int update(int direction, int max){
 			}
 			break;
 		case 'l':
-			if(get_hover() && !check_cache()){
-				open_path();
+			strcat(jet.cwd, get_hover());
+			strcat(jet.cwd, "/");
+			if(check_cache() || !open_path()){
+				load_files();
 			}
 			break;
 		case 'h':
-			if(get_return() && !check_cache()){
-				open_path();
+			if(get_return() && (check_cache() || !open_path())){
+				load_files();
 			}
 			break;
 		case 's':
@@ -224,22 +275,13 @@ int update(int direction, int max){
 			return max;
 	}
 	clear();
-	fc = ls();
-	mvprintw(FAYE_LINES, 0, jet.cwd);
-	for(int i = 0; i < ein.next; i++){
-		mvprintw(i, FAYE_COLS, "[%c] %s\n", i == ein.depth ? 'x' : ' ', ein.dir_buffer[i].path);
+	mvprintw(0, 0, jet.cwd);
+	fc = print_files(4, 1);
+	if(jet.selected >= fc){
+		jet.selected = fc -1;
 	}
-	return fc;
+	mvprintw(FAYE_LINES-2, 0, "[*] %s", ed.bookmark);
+	move(jet.selected+1, 0);
+	refresh();
+	return fc >= 0 ? fc : max;
 }
-
-
-void filter_input(char* input, char* buffer){
-	if(input[0] == '/'){
-		strncpy(buffer, input, FAYE_PATH_MAX);
-		buffer[FAYE_PATH_MAX-1] = 0;
-	} else{
-		strcat(buffer, "/");
-		strcat(buffer, input);
-	}
-}
-

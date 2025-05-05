@@ -21,6 +21,7 @@ int initialize_cmd(struct cmd* b){
 }
 
 
+/* */
 void read_cmd(){
 	char *new_buffer;
 	int character;
@@ -29,7 +30,7 @@ void read_cmd(){
 	ed.buffer_len = 0;
 	nocbreak();
 	echo();
-	move(FAYE_LINES+1, 0);
+	move(FAYE_LINES-1, 0);
 	addch(':');
 	while((character=getch()) != 0 && character != '\n'){
 		refresh();
@@ -95,4 +96,9 @@ int execute_cmd(){
 	execvp(argv[0], argv);
 	free(argv);
 	return -2;	
+}
+
+
+void free_cmd(struct cmd* c){
+	free(c->buffer);
 }

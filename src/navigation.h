@@ -15,6 +15,10 @@ struct cache{
 	struct directory dir_buffer[FAYE_MAX];
 	int depth; // current position
 	int next; // first spot available in buffer 
+
+	char** filenames;	
+	int files;
+	int file_slots;
 };
 
 
@@ -29,11 +33,12 @@ struct navigator{
 extern struct navigator jet;
 extern struct cache ein;
 
-int ls();
+int load_files();
 int update(int, int);
-void open_path();
+int open_path();
 void filter_input(char*, char*);
-void initialize_cache(struct cache*);
-void initialize_navigator(struct navigator*);
+int initialize_cache(struct cache*);
+void free_cache(struct cache*);
+void initialize_navigator(struct navigator*, char*);
 #endif
 
