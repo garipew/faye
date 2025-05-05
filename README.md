@@ -18,4 +18,4 @@ Or, alternatively, the path to the starting directory can be set by the first ar
 faye <path>
 ```
 
-Check the faye milestones [here](ROADMAP.md).
+Check faye milestones [here](ROADMAP.md).

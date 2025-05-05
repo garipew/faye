@@ -25,6 +25,7 @@ int main(int argc, char** argv){
 	}
 	initialize_cache(&ein);
 	initialize_navigator(&jet, path);
+	initialize_content(&julia);
 
 	if(open_path() != 0){
 		free_cmd(&ed);
@@ -37,7 +38,8 @@ int main(int argc, char** argv){
 	noecho();
 	cbreak();
 
-	int file_count = load_files();
+	load_files();
+	int file_count = count_printable();
 	do{
 		file_count = update(action, file_count);
 	}while((action = getch()) != 'q');

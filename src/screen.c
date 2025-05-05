@@ -7,6 +7,13 @@
 int faye_fdout;
 FILE* faye_out;
 SCREEN* faye_screen;
+struct content julia;
+
+
+void initialize_content(struct content* c){
+	c->first = 0;
+	c->max = 15;
+}
 
 
 int set_output(){

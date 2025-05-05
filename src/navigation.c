@@ -93,17 +93,16 @@ int load_files(){
 }
 
 
-int get_return(){
+char* get_parent(){
 	char* prev;
 	jet.cwd[--jet.cwd_len] = 0;
 	prev = strrchr(jet.cwd, '/');	
+	jet.cwd[jet.cwd_len++] = '/';
 	if(!prev){
-		jet.cwd[jet.cwd_len++] = '/';
-		return 0;
+		return NULL;
 	}
 	prev++;	
-	memset(prev, 0, jet.cwd_len + jet.cwd - prev);	
-	return 1;
+	return strndup(jet.cwd, prev-jet.cwd);
 }
 
 
@@ -111,7 +110,6 @@ char* get_hover(){
 	int selected = 0;
 	int absolute = 0;
 	while(selected <= jet.selected){
-		fprintf(stderr, "Not %s\n", ein.filenames[absolute]);
 		if(!jet.show_hidden && ein.filenames[absolute][0] == '.'){
 			absolute++;
 			continue; // skip hidden
@@ -127,9 +125,9 @@ int check_cache(){
 	for(int i = 0; i < ein.next; i++){
 		if(!strcmp(jet.cwd, ein.dir_buffer[i].path)){
 			ein.depth = i;
-			jet.selected = 0;
 			// path found on cache, update jet.cwd_len
 			jet.cwd_len = strlen(jet.cwd);
+			jet.selected = ein.dir_buffer[ein.depth].selected;
 			return 1;
 		}
 	}
@@ -140,6 +138,7 @@ int check_cache(){
 int open_path(){
 	if(ein.next >= FAYE_MAX){
 		fprintf(stderr, "faye: Too many open tabs\n");
+		memset(jet.cwd+jet.cwd_len, 0, FAYE_PATH_MAX-jet.cwd_len);
 		return -1;
 	}
 	ein.dir_buffer[ein.next].d_file = opendir(jet.cwd);	
@@ -149,10 +148,10 @@ int open_path(){
 		return -2;
 	}	
 	jet.cwd_len = strlen(jet.cwd); // opened path, update jet.cwd_len
-	jet.selected = 0;
-	ein.depth = ein.next;
-	strcpy(ein.dir_buffer[ein.next].path, jet.cwd);
-	ein.next++;	
+
+	ein.dir_buffer[ein.depth].selected = jet.selected;
+	ein.depth = ein.next++;
+	strcpy(ein.dir_buffer[ein.depth].path, jet.cwd);
 	return 0;
 }
 
@@ -167,19 +166,31 @@ void close_dir(){
 }
 
 
-int print_files(int x, int y){
-	if(ein.files == 0){
-		return 0;
-	}
-	int line = 0;
+int count_printable(){
+	int printable = 0;
 	for(int i = 0; i < ein.files; i++){
 		if(!jet.show_hidden && ein.filenames[i][0] == '.'){
 			continue;
 		}
-		mvprintw(y+line, x, ein.filenames[i]);	
-		line++;
+		printable++;
 	}
-	return line;
+	return printable;
+}
+
+
+void print_files(int x, int y){
+	int line = 0;
+	int printable = 0;
+	for(int i = 0; i < ein.files; i++){
+		if(!jet.show_hidden && ein.filenames[i][0] == '.'){
+			continue;
+		}
+		if(printable >= julia.first && line < julia.max){
+			mvprintw(y+line, x, ein.filenames[i]);	
+			line++;
+		}
+		printable++;
+	}
 }
 
 
@@ -188,6 +199,7 @@ int update(int direction, int max){
 	int pid;
 	int c;
 	char* hover;
+	char* parent;
 	switch(direction){
 		case 'f':
 			// free ed.bookmark
@@ -223,7 +235,6 @@ int update(int direction, int max){
 		case 'c':
 			if(ein.next > 1){
 				close_dir();
-				jet.selected = 0;
 				strcpy(jet.cwd, ein.dir_buffer[ein.depth].path);
 				jet.cwd_len = strlen(jet.cwd);
 			}
@@ -231,7 +242,6 @@ int update(int direction, int max){
 		case 'J':
 			if(ein.depth < ein.next-1){
 				ein.depth++;
-				jet.selected = 0;
 				strcpy(jet.cwd, ein.dir_buffer[ein.depth].path);
 				jet.cwd_len = strlen(jet.cwd);
 				load_files();
@@ -240,32 +250,45 @@ int update(int direction, int max){
 		case 'K':
 			if(ein.depth > 0){
 				ein.depth--;
-				jet.selected = 0;
 				strcpy(jet.cwd, ein.dir_buffer[ein.depth].path);
 				jet.cwd_len = strlen(jet.cwd);
 				load_files();
 			}
 			break;
 		case 'j':
-			if(jet.selected < max-1){
+			if(jet.selected+1 < max){
+				if(jet.selected == (julia.first + julia.max)-1){
+					julia.first++;
+				}
 				jet.selected++;
 			}
 			break;
 		case 'k':
 			if(jet.selected > 0){
+				if(jet.selected == julia.first){
+					julia.first--;
+				}
 				jet.selected--;
 			}
 			break;
 		case 'l':
-			strcat(jet.cwd, get_hover());
-			strcat(jet.cwd, "/");
-			if(check_cache() || !open_path()){
-				load_files();
+			hover = get_hover();
+			if(jet.cwd_len + strlen(hover) + 1 < FAYE_PATH_MAX){
+				strcat(jet.cwd, hover);
+				strcat(jet.cwd, "/");
+				if(check_cache() || !open_path()){
+					load_files();
+				} 
 			}
 			break;
 		case 'h':
-			if(get_return() && (check_cache() || !open_path())){
-				load_files();
+			parent = get_parent();	
+			if(parent){
+				strcpy(jet.cwd, parent);
+				free(parent);
+				if(check_cache() || !open_path()){
+					load_files();
+				}
 			}
 			break;
 		case 's':
@@ -274,14 +297,25 @@ int update(int direction, int max){
 		default:
 			return max;
 	}
+	fc = count_printable();
+	if(jet.selected >= fc){
+		if(jet.selected - julia.first < fc){
+			jet.selected -= julia.first;
+		} else{
+			jet.selected = fc-1;
+		}
+	}
+	if(julia.first > jet.selected || julia.first+julia.max-1 < jet.selected){
+		julia.first = jet.selected-julia.max+1;
+		if(julia.first < 0){
+			julia.first = 0;
+		}
+	}
 	clear();
 	mvprintw(0, 0, jet.cwd);
-	fc = print_files(4, 1);
-	if(jet.selected >= fc){
-		jet.selected = fc -1;
-	}
+	print_files(4, 2);
 	mvprintw(FAYE_LINES-2, 0, "[*] %s", ed.bookmark);
-	move(jet.selected+1, 0);
+	move((jet.selected-julia.first)+2, 0);
 	refresh();
 	return fc >= 0 ? fc : max;
 }

@@ -12,9 +12,17 @@
 #define FAYE_LINES 20
 
 
+struct content{
+	int first;
+	int max;
+};
+
+
 extern FILE* faye_out;
 extern SCREEN* faye_screen;
+extern struct content julia;
 
+void initialize_content(struct content*);
 int start_screen();
 void unset_output();
 #endif

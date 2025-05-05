@@ -8,6 +8,7 @@
 struct directory{
 	DIR* d_file;
 	char path[FAYE_PATH_MAX];
+	int selected;
 };
 
 
@@ -33,6 +34,7 @@ struct navigator{
 extern struct navigator jet;
 extern struct cache ein;
 
+int count_printable();
 int load_files();
 int update(int, int);
 int open_path();
