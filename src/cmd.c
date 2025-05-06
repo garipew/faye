@@ -14,7 +14,10 @@ int initialize_cmd(struct cmd* b){
 	b->buffer_len = 0;
 	b->buffer = malloc(b->buffer_size);
 	if(!b->buffer){
+		endwin();
 		fprintf(stderr, "faye: Unable to allocate cmd buffer\n");
+		fflush(stderr);
+		refresh();
 		return 0;
 	}
 	return 1;
@@ -38,7 +41,10 @@ void read_cmd(){
 			ed.buffer_size*=2;
 			new_buffer = realloc(ed.buffer, ed.buffer_size);
 			if(!new_buffer){
+				endwin();
 				fprintf(stderr, "faye: Unable to expand cmd buffer\n");
+				fflush(stderr);
+				refresh();
 				break;
 			}
 			ed.buffer = new_buffer;

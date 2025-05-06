@@ -38,7 +38,6 @@ void initialize_navigator(struct navigator* n, char* path){
 		n->cwd_len++;
 	}
 	n->selected = 0;
-	n->show_hidden = 0;
 }
 
 
@@ -51,7 +50,7 @@ int initialize_cache(struct cache* c){
 	c->files = 0;
 	c->filenames = malloc(sizeof(*c->filenames)*c->file_slots);
 	if(!c->filenames){
-		fprintf(stderr, "faye: Unable to initialize cache\n");
+		print_err("faye: Unable to initialize cache\n");
 		return -1;
 	}
 	memset(c->filenames, 0, c->file_slots*sizeof(*c->filenames));
@@ -71,7 +70,7 @@ int load_files(){
 			ein.file_slots*=2; 
 			new_buffer = realloc(ein.filenames, sizeof(*ein.filenames)*ein.file_slots);
 			if(!new_buffer){
-				fprintf(stderr, "faye: Unable to expand cache.\n");
+				print_err("faye: Unable to expand cache.\n");
 				ein.file_slots/=2; 
 				break;
 			}	
@@ -81,7 +80,7 @@ int load_files(){
 		if(!ein.filenames[ein.files]){
 			ein.filenames[ein.files] = malloc(FAYE_FILE_MAX);
 			if(!ein.filenames[ein.files]){
-				fprintf(stderr, "faye: Unable to expand cache.\n");
+				print_err("faye: Unable to expand cache.\n");
 				break;
 			}
 		}
@@ -110,7 +109,7 @@ char* get_hover(){
 	int selected = 0;
 	int absolute = 0;
 	while(selected <= jet.selected){
-		if(!jet.show_hidden && ein.filenames[absolute][0] == '.'){
+		if(!julia.show_hidden && ein.filenames[absolute][0] == '.'){
 			absolute++;
 			continue; // skip hidden
 		}
@@ -137,13 +136,13 @@ int check_cache(){
 
 int open_path(){
 	if(ein.next >= FAYE_MAX){
-		fprintf(stderr, "faye: Too many open tabs\n");
+		print_err("faye: Too many open tabs\n");
 		memset(jet.cwd+jet.cwd_len, 0, FAYE_PATH_MAX-jet.cwd_len);
 		return -1;
 	}
 	ein.dir_buffer[ein.next].d_file = opendir(jet.cwd);	
 	if(!ein.dir_buffer[ein.next].d_file){
-		fprintf(stderr, "faye: Unable to open %s\n", jet.cwd);
+		print_err("faye: Unable to open %s\n", jet.cwd);
 		memset(jet.cwd+jet.cwd_len, 0, FAYE_PATH_MAX-jet.cwd_len);
 		return -2;
 	}	
@@ -169,7 +168,7 @@ void close_dir(){
 int count_printable(){
 	int printable = 0;
 	for(int i = 0; i < ein.files; i++){
-		if(!jet.show_hidden && ein.filenames[i][0] == '.'){
+		if(!julia.show_hidden && ein.filenames[i][0] == '.'){
 			continue;
 		}
 		printable++;
@@ -178,19 +177,22 @@ int count_printable(){
 }
 
 
-void print_files(int x, int y){
-	int line = 0;
-	int printable = 0;
-	for(int i = 0; i < ein.files; i++){
-		if(!jet.show_hidden && ein.filenames[i][0] == '.'){
-			continue;
+int fix_cursor(){
+	int fc = count_printable();
+	if(jet.selected >= fc){
+		if(jet.selected - julia.first < fc){
+			jet.selected -= julia.first;
+		} else{
+			jet.selected = fc-1;
 		}
-		if(printable >= julia.first && line < julia.max){
-			mvprintw(y+line, x, ein.filenames[i]);	
-			line++;
-		}
-		printable++;
 	}
+	if(julia.first > jet.selected || julia.first+julia.max-1 < jet.selected){
+		julia.first = jet.selected-julia.max+1;
+		if(julia.first < 0){
+			julia.first = 0;
+		}
+	}
+	return fc;
 }
 
 
@@ -219,15 +221,15 @@ int update(int direction, int max){
 					chdir(jet.cwd);
 					dup2(fileno(faye_out), fileno(stdout));
 					execute_cmd();		
-					fprintf(stderr, "faye: Failed to execute %s\n", ed.buffer);
+					print_err("faye: Failed to execute %s\n", ed.buffer);
 					exit(-2);
 				} else if(pid > 0){
 					waitpid(pid, NULL, 0);
 					ed.bookmark[0] = 0;
-					fprintf(stderr, "\n\nfaye: Press enter to return\n\n");
+					print_err("\n\nfaye: Press enter to return\n\n");
 					while((c = getchar()) != '\n' && c != EOF);
 				} else{
-					fprintf(stderr, "faye: Unable to fork\n");
+					print_err("faye: Unable to fork\n");
 				}
 				refresh();
 			}
@@ -237,6 +239,7 @@ int update(int direction, int max){
 				close_dir();
 				strcpy(jet.cwd, ein.dir_buffer[ein.depth].path);
 				jet.cwd_len = strlen(jet.cwd);
+				julia.update = 1;
 			}
 			break;
 		case 'J':
@@ -245,6 +248,7 @@ int update(int direction, int max){
 				strcpy(jet.cwd, ein.dir_buffer[ein.depth].path);
 				jet.cwd_len = strlen(jet.cwd);
 				load_files();
+				julia.update = 1;
 			}
 			break;
 		case 'K':
@@ -253,12 +257,14 @@ int update(int direction, int max){
 				strcpy(jet.cwd, ein.dir_buffer[ein.depth].path);
 				jet.cwd_len = strlen(jet.cwd);
 				load_files();
+				julia.update = 1;
 			}
 			break;
 		case 'j':
 			if(jet.selected+1 < max){
 				if(jet.selected == (julia.first + julia.max)-1){
 					julia.first++;
+					julia.update = 1;
 				}
 				jet.selected++;
 			}
@@ -267,6 +273,7 @@ int update(int direction, int max){
 			if(jet.selected > 0){
 				if(jet.selected == julia.first){
 					julia.first--;
+					julia.update = 1;
 				}
 				jet.selected--;
 			}
@@ -278,6 +285,7 @@ int update(int direction, int max){
 				strcat(jet.cwd, "/");
 				if(check_cache() || !open_path()){
 					load_files();
+					julia.update = 1;
 				} 
 			}
 			break;
@@ -288,32 +296,20 @@ int update(int direction, int max){
 				free(parent);
 				if(check_cache() || !open_path()){
 					load_files();
+					julia.update = 1;
 				}
 			}
 			break;
 		case 's':
-			jet.show_hidden = !jet.show_hidden;
+			julia.show_hidden = !julia.show_hidden;
+			julia.update = 1;
 			break;
 		default:
 			return max;
 	}
-	fc = count_printable();
-	if(jet.selected >= fc){
-		if(jet.selected - julia.first < fc){
-			jet.selected -= julia.first;
-		} else{
-			jet.selected = fc-1;
-		}
-	}
-	if(julia.first > jet.selected || julia.first+julia.max-1 < jet.selected){
-		julia.first = jet.selected-julia.max+1;
-		if(julia.first < 0){
-			julia.first = 0;
-		}
-	}
-	clear();
+	fc = fix_cursor();
+	redraw(ein.filenames, ein.files, 4, 2);
 	mvprintw(0, 0, jet.cwd);
-	print_files(4, 2);
 	mvprintw(FAYE_LINES-2, 0, "[*] %s", ed.bookmark);
 	move((jet.selected-julia.first)+2, 0);
 	refresh();

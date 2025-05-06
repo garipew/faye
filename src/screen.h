@@ -15,6 +15,8 @@
 struct content{
 	int first;
 	int max;
+	int show_hidden;
+	int update;
 };
 
 
@@ -22,7 +24,9 @@ extern FILE* faye_out;
 extern SCREEN* faye_screen;
 extern struct content julia;
 
+void print_err(const char*, ...);
 void initialize_content(struct content*);
 int start_screen();
 void unset_output();
+void redraw(char**, int, int, int);
 #endif

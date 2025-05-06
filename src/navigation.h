@@ -27,7 +27,6 @@ struct navigator{
 	char cwd[FAYE_PATH_MAX];
 	int cwd_len;
 	int selected;
-	int show_hidden;
 };
 
 

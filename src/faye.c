@@ -31,7 +31,6 @@ int main(int argc, char** argv){
 		free_cmd(&ed);
 		endwin();
 		delscreen(faye_screen);
-		fprintf(stderr, "Unable to open %s\n", jet.cwd);
 		return 1;
 	}
 
