@@ -1,27 +1,27 @@
 # Faye
-1. [[#About faye]]
-2. [[#The opener]]
-	1. [[#open_path()]]
-	2. [[#load_files()]]
-3. [[#The cache]]
-	1. [[#check_cache()]]
-4. [[#The navigation]]
-	1. [[#get_hover()]]
-	2. [[#get_parent()]]
-5. [[# The command bar]]
-	1. [[#read_cmd()]]
-	2. [[#execute_cmd()]]
-		1. [[#Bookmarked files]]
-6. [[#The wrapper]]
-7. [[# The UI]]
-	1. [[#Files]]
-		1. [[#Scroll]]
-		2. [[#clear_lines()]]
-		3. [[#print_lines()]]
-		4. [[#redraw()]]
-8. [[#Global variables]]
-9. [[#Known bugs]]
-	1. [[#memory leaking on free_cache]]
+1. [About faye](#about-faye)
+2. [The opener](#the-opener)
+	1. [open_path()](#open_path())
+	2. [load_files()](#load_files())
+3. [The cache](#the-cache)
+	1. [check_cache()](#check_cache())
+4. [The navigation](#the-navigation)
+	1. [get_hover()](#get_hover())
+	2. [get_parent()](#get_parent())
+5. [The command bar](#the-command-bar)
+	1. [read_cmd()](#read_cmd())
+	2. [execute_cmd()](#execute_cmd())
+		1. [Bookmarked files](#bookmarked-files)
+6. [The wrapper](#the-wrapper)
+7. [The UI](#the-ui)
+	1. [Files](#files)
+		1. [Scroll](#scroll)
+		2. [clear_lines()](#clear_lines())
+		3. [print_lines()](#print_lines())
+		4. [redraw()](#redraw())
+8. [Global variables](#global-variables)
+9. [Known bugs](#known-bugs)
+	1. [memory leaking on free_cache](#memory-leaking-on-free_cache)
 
 ## About faye
 In search for mastery, inspired by [yazi](https://github.com/sxyazi/yazi) and after another bebop rewatch, faye was born. Faye is a terminal-based file explorer.
@@ -55,7 +55,7 @@ The navigation is the process of moving between directories and between files in
 The description above turns evident the idea that the navigation process happens in two distinct fronts. In faye, these fronts are referred as horizontal moves and vertical moves. 
 
 The flow of the navigation feature is described by the following graph 
-![[navigate.png]]
+![navigate](navigate.png)
 
 In order to get the targeted path, two distinct functions are supported by faye:
 ### get_hover()
