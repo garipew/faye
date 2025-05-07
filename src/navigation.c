@@ -123,6 +123,7 @@ char* get_hover(){
 int check_cache(){
 	for(int i = 0; i < ein.next; i++){
 		if(!strcmp(jet.cwd, ein.dir_buffer[i].path)){
+			ein.dir_buffer[ein.depth].selected = jet.selected;
 			ein.depth = i;
 			// path found on cache, update jet.cwd_len
 			jet.cwd_len = strlen(jet.cwd);
@@ -309,7 +310,9 @@ int update(int direction, int max){
 	}
 	fc = fix_cursor();
 	redraw(ein.filenames, ein.files, 4, 2);
+	clear_lines(1, 0, 0);
 	mvprintw(0, 0, jet.cwd);
+	clear_lines(1, 0, FAYE_LINES-2);
 	mvprintw(FAYE_LINES-2, 0, "[*] %s", ed.bookmark);
 	move((jet.selected-julia.first)+2, 0);
 	refresh();

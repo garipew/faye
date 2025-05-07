@@ -28,5 +28,6 @@ void print_err(const char*, ...);
 void initialize_content(struct content*);
 int start_screen();
 void unset_output();
+void clear_lines(int, int, int);
 void redraw(char**, int, int, int);
 #endif
