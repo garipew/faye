@@ -18,4 +18,22 @@ Or, alternatively, the path to the starting directory can be set by the first ar
 faye <path>
 ```
 
+### Changing cwd on exit
+In order to make faye able to change cwd on exit, paste this function at the end of your startup script
+```
+fy (){
+	ret=$(faye)
+	cd $ret
+}
+
+``` 
+And then launch faye with
+```
+fy
+```
+
+## Milestones
 Check faye milestones [here](ROADMAP.md).
+
+## Documentation
+Check implementation details [here](notes/details.md).
