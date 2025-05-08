@@ -80,6 +80,7 @@ void clear_lines(int line_count, int x, int y){
 		clrtoeol();
 	}
 	move(prev_y, prev_x);
+	refresh();
 }
 
 
@@ -87,6 +88,7 @@ void print_lines(char** lines, int line_count, int x, int y){
 	int prev_x, prev_y;
 	int line = 0;
 	int printable = 0;
+	char hold;
 	getyx(stdscr, prev_y, prev_x); 
 	clear_lines(julia.max, x, y);
 	for(int i = 0; i < line_count; i++){
@@ -94,12 +96,16 @@ void print_lines(char** lines, int line_count, int x, int y){
 			continue;
 		}
 		if(printable >= julia.first && line < julia.max){
+			hold = lines[i][FAYE_COLS]; 
+			lines[i][FAYE_COLS] = 0;
 			mvprintw(y+line, x, lines[i]);	
+			lines[i][FAYE_COLS] = hold;
 			line++;
 		}
 		printable++;
 	}
 	move(prev_y, prev_x);
+	refresh();
 }
 
 
