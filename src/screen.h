@@ -23,4 +23,6 @@ int start_screen();
 void unset_output();
 void clear_lines(int, int, int);
 void redraw(int, int);
+int get_absolute(int, int);
+int get_relative(int, int);
 #endif

@@ -90,3 +90,34 @@ int is_bookmarked(int needle){
 	}
 	return 0;
 }
+
+
+int get_absolute(int relative, int show_hidden){
+	int absolute;
+	int printable = 0;
+	int max = count_printable(1);
+	for(absolute = 0; absolute < max; absolute++){
+		if(!show_hidden && ein.filenames[absolute][0] == '.'){
+			continue;
+		}	
+		if(printable == relative){
+			break;
+		}
+		printable++;
+	}
+	return absolute;
+}
+
+
+int get_relative(int absolute, int show_hidden){
+	int count;
+	int printable = 0;
+	int max = count_printable(1);
+	for(count = 0; count < absolute; count++){
+		if(!show_hidden && ein.filenames[count][0] == '.'){
+			continue;
+		}	
+		printable++;
+	}
+	return printable;
+}

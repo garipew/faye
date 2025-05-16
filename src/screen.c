@@ -122,10 +122,12 @@ void clean_bookmarks(int x, int y){
 
 
 void draw_bookmarks(int x, int y){
+	int relative;
 	clean_bookmarks(x, y);
 	for(int i = 0; i < ein.bookmark_count; i++){
-		if(ein.bookmarks[i] >= julia.first && ein.bookmarks[i] < julia.first + julia.max){
-			mvprintw(y+ein.bookmarks[i]-julia.first, x/2, "*");
+		relative = get_relative(ein.bookmarks[i], julia.show_hidden);
+		if(relative >= julia.first && relative < julia.first + julia.max){
+			mvprintw(y+relative-julia.first, x/2, "*");
 		}
 	}
 	refresh();

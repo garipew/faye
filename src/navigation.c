@@ -117,6 +117,7 @@ int update(int direction, int max){
 	int c;
 	char* hover;
 	char* parent;
+	int abs;
 	switch(direction){
 		case 'F':
 			// free all bookmarks
@@ -130,10 +131,14 @@ int update(int direction, int max){
 			break;
 		case 'b':
 			// bookmark file
-			if(ein.bookmark_count < FAYE_BOOKMARKS && !is_bookmarked(jet.selected)){
-				ein.bookmarks[ein.bookmark_count++] = jet.selected;
+			abs = get_absolute(jet.selected, julia.show_hidden);
+			if(is_bookmarked(abs)){
+				break;
+			}
+			if(ein.bookmark_count < FAYE_BOOKMARKS){
+				ein.bookmarks[ein.bookmark_count++] = abs;
 			}else{
-				ein.bookmarks[0] = jet.selected;
+				ein.bookmarks[0] = abs;
 			}
 			break;
 		case ':':
