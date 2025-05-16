@@ -119,8 +119,8 @@ Of course this would also mean that the selector position on screen is not equal
 
 Now, for the actual drawing. Three functions are defined:
 - clear_lines(int, int, int);
-- print_lines(char**, int, int, int);
-- redraw(char**, int, int, int);
+- print_lines(int, int);
+- redraw(int, int);
 
 The function actually called for redrawing the content is redraw(). The other two functions serve their own purpose. 
 
@@ -128,14 +128,14 @@ The function actually called for redrawing the content is redraw(). The other tw
 The first, clear_lines is called before every redraw, it is a smarter cleaner than the ncurses clear(). It takes 3 arguments: line_count, x and y. The function then clears line_count lines, starting at the yth row of the screen and at the xth column.  
 
 #### print_lines()
-This function does as suggested and does print the lines. It takes as arguments an array of strings, the count of strings inside the array, x and y.
+This function prints the lines in cache starting at the position passed as arguments. It takes as arguments x and y.
 
 The function then prints the maximum amount of strings possible in the screen: could be either the full array or the max allowed by the UI.
 
 x and y serves as offset values, allowing the printing to be adjusted on screen if needed. The printing will start at the xth column on the yth row of the screen.
 
 #### redraw()
-At last, redraw. This function print the lines passed as argument **if** necessary.
+At last, redraw. This function print the in cache **if** necessary.
 
 The arguments are the same as print_lines'.
 
