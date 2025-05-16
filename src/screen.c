@@ -1,4 +1,5 @@
 #include "screen.h"
+#include "cache.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -28,7 +29,7 @@ void print_err(const char* format, ...){
 
 void initialize_content(struct content* c){
 	c->first = 0;
-	c->max = 15;
+	c->max = LINES-4;
 	c->show_hidden = 0;
 	c->update = 1;
 }
@@ -84,22 +85,22 @@ void clear_lines(int line_count, int x, int y){
 }
 
 
-void print_lines(char** lines, int line_count, int x, int y){
+void print_lines(int x, int y){
 	int prev_x, prev_y;
 	int line = 0;
 	int printable = 0;
 	char hold;
 	getyx(stdscr, prev_y, prev_x); 
 	clear_lines(julia.max, x, y);
-	for(int i = 0; i < line_count; i++){
-		if(!julia.show_hidden && lines[i][0] == '.'){
+	for(int i = 0; i < ein.files; i++){
+		if(!julia.show_hidden && ein.filenames[i][0] == '.'){
 			continue;
 		}
 		if(printable >= julia.first && line < julia.max){
-			hold = lines[i][FAYE_COLS]; 
-			lines[i][FAYE_COLS] = 0;
-			mvprintw(y+line, x, lines[i]);	
-			lines[i][FAYE_COLS] = hold;
+			hold = ein.filenames[i][COLS]; 
+			ein.filenames[i][COLS] = 0;
+			mvprintw(y+line, x, ein.filenames[i]);	
+			ein.filenames[i][COLS] = hold;
 			line++;
 		}
 		printable++;
@@ -109,10 +110,33 @@ void print_lines(char** lines, int line_count, int x, int y){
 }
 
 
-void redraw(char** lines, int line_count, int x, int y){
+void clean_bookmarks(int x, int y){
+	for(int i = 0; i < julia.max; i++){
+		move(y+i, 0);
+		for(int j = 0; j < x; j++){
+			addch(' '); 
+		}
+	}
+	refresh();
+}
+
+
+void draw_bookmarks(int x, int y){
+	clean_bookmarks(x, y);
+	for(int i = 0; i < ein.bookmark_count; i++){
+		if(ein.bookmarks[i] >= julia.first && ein.bookmarks[i] < julia.first + julia.max){
+			mvprintw(y+ein.bookmarks[i]-julia.first, x/2, "*");
+		}
+	}
+	refresh();
+}
+
+
+void redraw(int x, int y){
+	draw_bookmarks(x, y);
 	if(!julia.update){
 		return;
 	}
-	print_lines(lines, line_count, x, y);	
+	print_lines(x, y);	
 	julia.update = 0;
 }

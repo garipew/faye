@@ -1,13 +1,13 @@
 #ifndef FAYE_CMD_H
 #define FAYE_CMD_H
 
+#include "cache.h"
 #include "screen.h"
 
 struct cmd{
 	char* buffer;
 	int buffer_size;
 	int buffer_len;
-	char bookmark[FAYE_PATH_MAX];
 };
 
 extern struct cmd ed;

@@ -30,7 +30,7 @@ void read_cmd(){
 	ed.buffer_len = 0;
 	nocbreak();
 	echo();
-	move(FAYE_LINES-1, 0);
+	move(LINES-1, 0);
 	addch(':');
 	while((character=getch()) != 0 && character != '\n'){
 		refresh();
@@ -68,8 +68,8 @@ int strcnt(char* haystack, char needle){
 
 int execute_cmd(){
 	int argc;
-	if(ed.bookmark[0]){
-		argc = 2;
+	if(ein.bookmark_count > 0){
+		argc = ein.bookmark_count+1;
 	}else{
 		argc = strcnt(ed.buffer, ' ')+1;
 	}
@@ -79,9 +79,11 @@ int execute_cmd(){
 		return -1;
 	}
 	argv[argc] = NULL;
-	if(ed.bookmark[0]){
+	if(ein.bookmark_count > 0){
 		argv[0] = ed.buffer+1;
-		argv[1] = ed.bookmark;
+		for(int i = 0; i < ein.bookmark_count; i++){
+			argv[i+1] = ein.filenames[ein.bookmarks[i]];
+		}
 	} else{
 		while(argc--){
 			argv[argc] = strrchr(ed.buffer, ' ');

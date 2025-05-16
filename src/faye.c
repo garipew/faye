@@ -1,5 +1,6 @@
 #include "navigation.h"
 #include "screen.h"
+#include "cache.h"
 #include <ncurses.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -38,9 +39,11 @@ int main(int argc, char** argv){
 	cbreak();
 
 	load_files();
-	int file_count = count_printable();
+	int file_count = count_printable(julia.show_hidden);
+	draw();
 	do{
 		file_count = update(action, file_count);
+		draw();
 	}while((action = getch()) != 'q');
 
 	endwin();

@@ -6,23 +6,10 @@
 #include <sys/wait.h>
 #include "screen.h"
 #include "navigation.h"
+#include "cache.h"
 
 
 struct navigator jet;
-struct cache ein;
-
-
-void free_cache(struct cache* c){
-	if(c->filenames){
-		for(int i = 0; i < c->files; i++){
-			free(c->filenames[i]);
-		}
-		free(c->filenames);
-	}
-	for(int i = 0; i < c->next; i++){
-		closedir(c->dir_buffer[i].d_file);
-	}
-}
 
 
 void initialize_navigator(struct navigator* n, char* path){
@@ -38,57 +25,6 @@ void initialize_navigator(struct navigator* n, char* path){
 		n->cwd_len++;
 	}
 	n->selected = 0;
-}
-
-
-int initialize_cache(struct cache* c){
-	memset(c->dir_buffer, 0, sizeof(c->dir_buffer[0]) * FAYE_MAX);
-	c->depth = -1;
-	c->next = 0;
-	
-	c->file_slots = 10; 
-	c->files = 0;
-	c->filenames = malloc(sizeof(*c->filenames)*c->file_slots);
-	if(!c->filenames){
-		print_err("faye: Unable to initialize cache\n");
-		return -1;
-	}
-	memset(c->filenames, 0, c->file_slots*sizeof(*c->filenames));
-	return 0;
-}
-
-
-int load_files(){
-	struct dirent *file;
-	char** new_buffer;
-	ein.files = 0;
-	while((file = readdir(ein.dir_buffer[ein.depth].d_file)) != NULL){
-		if(!strcmp(file->d_name, ".") || !strcmp(file->d_name, "..")){
-			continue;
-		}
-		if(ein.files >= ein.file_slots){
-			ein.file_slots*=2; 
-			new_buffer = realloc(ein.filenames, sizeof(*ein.filenames)*ein.file_slots);
-			if(!new_buffer){
-				print_err("faye: Unable to expand cache.\n");
-				ein.file_slots/=2; 
-				break;
-			}	
-			ein.filenames = new_buffer;
-			memset(ein.filenames+ein.files, 0, sizeof(*ein.filenames)*(ein.file_slots-ein.files+1));
-		} 	
-		if(!ein.filenames[ein.files]){
-			ein.filenames[ein.files] = malloc(FAYE_FILE_MAX);
-			if(!ein.filenames[ein.files]){
-				print_err("faye: Unable to expand cache.\n");
-				break;
-			}
-		}
-		strcpy(ein.filenames[ein.files], file->d_name);
-		ein.files++;	
-	}
-	rewinddir(ein.dir_buffer[ein.depth].d_file);
-	return ein.files;
 }
 
 
@@ -156,30 +92,8 @@ int open_path(){
 }
 
 
-void close_dir(){
-	closedir(ein.dir_buffer[ein.depth].d_file);
-	ein.next--;
-	memmove(&ein.dir_buffer[ein.depth], &ein.dir_buffer[ein.depth+1], (ein.next - ein.depth)*sizeof(ein.dir_buffer[ein.depth]));
-	if(ein.depth == ein.next){
-		ein.depth--;
-	}
-}
-
-
-int count_printable(){
-	int printable = 0;
-	for(int i = 0; i < ein.files; i++){
-		if(!julia.show_hidden && ein.filenames[i][0] == '.'){
-			continue;
-		}
-		printable++;
-	}
-	return printable;
-}
-
-
 int fix_cursor(){
-	int fc = count_printable();
+	int fc = count_printable(julia.show_hidden);
 	if(jet.selected >= fc){
 		if(jet.selected - julia.first < fc){
 			jet.selected -= julia.first;
@@ -204,14 +118,23 @@ int update(int direction, int max){
 	char* hover;
 	char* parent;
 	switch(direction){
+		case 'F':
+			// free all bookmarks
+			ein.bookmark_count = 0;
+			break;
 		case 'f':
-			// free ed.bookmark
-			ed.bookmark[0] = 0;
+			// free last bookmark
+			if(ein.bookmark_count > 0){
+				ein.bookmark_count--;
+			}
 			break;
 		case 'b':
-			// ed.bookmark file
-			strcpy(ed.bookmark, jet.cwd);
-			strcat(ed.bookmark, get_hover());
+			// bookmark file
+			if(ein.bookmark_count < FAYE_BOOKMARKS && !is_bookmarked(jet.selected)){
+				ein.bookmarks[ein.bookmark_count++] = jet.selected;
+			}else{
+				ein.bookmarks[0] = jet.selected;
+			}
 			break;
 		case ':':
 			read_cmd();
@@ -226,39 +149,13 @@ int update(int direction, int max){
 					exit(-2);
 				} else if(pid > 0){
 					waitpid(pid, NULL, 0);
-					ed.bookmark[0] = 0;
+					ein.bookmark_count = 0;
 					print_err("\n\nfaye: Press enter to return\n\n");
 					while((c = getchar()) != '\n' && c != EOF);
 				} else{
 					print_err("faye: Unable to fork\n");
 				}
 				refresh();
-			}
-			break;
-		case 'c':
-			if(ein.next > 1){
-				close_dir();
-				strcpy(jet.cwd, ein.dir_buffer[ein.depth].path);
-				jet.cwd_len = strlen(jet.cwd);
-				julia.update = 1;
-			}
-			break;
-		case 'J':
-			if(ein.depth < ein.next-1){
-				ein.depth++;
-				strcpy(jet.cwd, ein.dir_buffer[ein.depth].path);
-				jet.cwd_len = strlen(jet.cwd);
-				load_files();
-				julia.update = 1;
-			}
-			break;
-		case 'K':
-			if(ein.depth > 0){
-				ein.depth--;
-				strcpy(jet.cwd, ein.dir_buffer[ein.depth].path);
-				jet.cwd_len = strlen(jet.cwd);
-				load_files();
-				julia.update = 1;
 			}
 			break;
 		case 'j':
@@ -287,6 +184,7 @@ int update(int direction, int max){
 				if(check_cache() || !open_path()){
 					load_files();
 					julia.update = 1;
+					ein.bookmark_count = 0;
 				} 
 			}
 			break;
@@ -298,23 +196,28 @@ int update(int direction, int max){
 				if(check_cache() || !open_path()){
 					load_files();
 					julia.update = 1;
+					ein.bookmark_count = 0;
 				}
 			}
 			break;
 		case 's':
 			julia.show_hidden = !julia.show_hidden;
 			julia.update = 1;
+			ein.bookmark_count = 0;
 			break;
 		default:
 			return max;
 	}
 	fc = fix_cursor();
-	redraw(ein.filenames, ein.files, 4, 2);
+	return fc >= 0 ? fc : max;
+}
+
+
+void draw(){
+	redraw(5, 2);
 	clear_lines(1, 0, 0);
 	mvprintw(0, 0, jet.cwd);
-	clear_lines(1, 0, FAYE_LINES-2);
-	mvprintw(FAYE_LINES-2, 0, "[*] %s", ed.bookmark);
+	clear_lines(2, 0, LINES-2);
 	move((jet.selected-julia.first)+2, 0);
 	refresh();
-	return fc >= 0 ? fc : max;
 }
