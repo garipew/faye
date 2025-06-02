@@ -22,7 +22,7 @@ faye <path>
 In order to make faye able to change cwd on exit, paste this function at the end of your startup script
 ```
 fy (){
-	ret=$(faye)
+	ret=$(faye $1)
 	cd $ret
 }
 

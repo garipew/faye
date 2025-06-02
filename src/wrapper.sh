@@ -1,6 +1,6 @@
 ## Copy to ~/.bashrc or any other startup file used  
 
 fy (){
-	ret=$(faye)
+	ret=$(faye $1)
 	cd $ret
 }
