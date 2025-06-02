@@ -14,11 +14,10 @@ struct navigator jet;
 
 void initialize_navigator(struct navigator* n, char* path){
 	memset(n->cwd, 0, FAYE_PATH_MAX);
-	if(!path){
-		getcwd(n->cwd, FAYE_PATH_MAX);
-	}else{
-		strncpy(n->cwd, path, FAYE_PATH_MAX);
+	if(path){
+		chdir(path);
 	}
+	getcwd(n->cwd, FAYE_PATH_MAX);
 	n->cwd_len = strlen(n->cwd);
 	if(n->cwd_len < FAYE_PATH_MAX && n->cwd[n->cwd_len-1] != '/'){
 		n->cwd[n->cwd_len] = '/';
