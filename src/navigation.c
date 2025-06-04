@@ -91,6 +91,15 @@ int open_path(){
 }
 
 
+void lazy_open(){
+	if(check_cache() || !open_path()){
+		load_files();
+		julia.update = 1;
+		ein.bookmark_count = 0;
+	} 
+}
+
+
 int fix_cursor(){
 	int fc = count_printable(julia.show_hidden);
 	if(jet.selected >= fc){
@@ -110,6 +119,28 @@ int fix_cursor(){
 }
 
 
+void move_cursor_up(){
+	if(jet.selected > 0){
+		if(jet.selected == julia.first){
+			julia.first--;
+			julia.update = 1;
+		}
+		jet.selected--;
+	}
+}
+
+
+void move_cursor_down(int max){
+	if(jet.selected+1 < max){
+		if(jet.selected == (julia.first + julia.max)-1){
+			julia.first++;
+			julia.update = 1;
+		}
+		jet.selected++;
+	}
+}
+
+
 void minimize_path(){
 	if(strstr(jet.cwd, "..") ||
 	 strstr(jet.cwd, "./") ||
@@ -120,12 +151,45 @@ void minimize_path(){
 }
 
 
+void jump_to_parent(){
+	char* parent = get_parent();	
+	if(parent){
+		strcpy(jet.cwd, parent);
+		free(parent);
+		lazy_open();
+	}
+}
+
+
+void jump_to_child(){
+	char* hover = get_hover();
+	if(jet.cwd_len + strlen(hover) + 1 < FAYE_PATH_MAX){
+		strcat(jet.cwd, hover);
+		strcat(jet.cwd, "/");
+		lazy_open();
+	}
+}
+
+
+void jump_to_path(){
+	read_cmd();
+	if(ed.buffer[0] == '/'){
+		strncpy(jet.cwd, ed.buffer, FAYE_PATH_MAX);
+	} else{
+		strncat(jet.cwd, ed.buffer, FAYE_PATH_MAX-strlen(jet.cwd));
+	}
+	minimize_path();
+	if(jet.cwd[strlen(jet.cwd)-1] != '/'){
+		strcat(jet.cwd, "/");
+	}
+	lazy_open();
+}
+
+
 int update(int direction, int max){
 	int fc = -1;
 	int pid;
 	int c;
-	char* hover;
-	char* parent;
 	int abs;
 	switch(direction){
 		case 'F':
@@ -151,21 +215,7 @@ int update(int direction, int max){
 			}
 			break;
 		case '/':
-			read_cmd();
-			if(ed.buffer[0] == '/'){
-				strncpy(jet.cwd, ed.buffer, FAYE_PATH_MAX);
-			} else{
-				strncat(jet.cwd, ed.buffer, FAYE_PATH_MAX-strlen(jet.cwd));
-			}
-			minimize_path();
-			if(jet.cwd[strlen(jet.cwd)-1] != '/'){
-				strcat(jet.cwd, "/");
-			}
-			if(check_cache() || !open_path()){
-				load_files();
-				julia.update = 1;
-				ein.bookmark_count = 0;
-			} 
+			jump_to_path();
 			break;
 		case ':':
 			read_cmd();
@@ -190,46 +240,16 @@ int update(int direction, int max){
 			}
 			break;
 		case 'j':
-			if(jet.selected+1 < max){
-				if(jet.selected == (julia.first + julia.max)-1){
-					julia.first++;
-					julia.update = 1;
-				}
-				jet.selected++;
-			}
+			move_cursor_down(max);
 			break;
 		case 'k':
-			if(jet.selected > 0){
-				if(jet.selected == julia.first){
-					julia.first--;
-					julia.update = 1;
-				}
-				jet.selected--;
-			}
+			move_cursor_up();
 			break;
 		case 'l':
-			hover = get_hover();
-			if(jet.cwd_len + strlen(hover) + 1 < FAYE_PATH_MAX){
-				strcat(jet.cwd, hover);
-				strcat(jet.cwd, "/");
-				if(check_cache() || !open_path()){
-					load_files();
-					julia.update = 1;
-					ein.bookmark_count = 0;
-				} 
-			}
+			jump_to_child();
 			break;
 		case 'h':
-			parent = get_parent();	
-			if(parent){
-				strcpy(jet.cwd, parent);
-				free(parent);
-				if(check_cache() || !open_path()){
-					load_files();
-					julia.update = 1;
-					ein.bookmark_count = 0;
-				}
-			}
+			jump_to_parent();
 			break;
 		case 's':
 			julia.show_hidden = !julia.show_hidden;
