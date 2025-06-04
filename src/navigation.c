@@ -110,6 +110,16 @@ int fix_cursor(){
 }
 
 
+void minimize_path(){
+	if(strstr(jet.cwd, "..") ||
+	 strstr(jet.cwd, "./") ||
+	 strrchr(jet.cwd, '.') == strchr(jet.cwd, '\0') - 1){
+		chdir(jet.cwd);
+		getcwd(jet.cwd, FAYE_PATH_MAX);
+	}
+}
+
+
 int update(int direction, int max){
 	int fc = -1;
 	int pid;
@@ -139,6 +149,23 @@ int update(int direction, int max){
 			}else{
 				ein.bookmarks[0] = abs;
 			}
+			break;
+		case '/':
+			read_cmd();
+			if(ed.buffer[0] == '/'){
+				strncpy(jet.cwd, ed.buffer, FAYE_PATH_MAX);
+			} else{
+				strncat(jet.cwd, ed.buffer, FAYE_PATH_MAX-strlen(jet.cwd));
+			}
+			minimize_path();
+			if(jet.cwd[strlen(jet.cwd)-1] != '/'){
+				strcat(jet.cwd, "/");
+			}
+			if(check_cache() || !open_path()){
+				load_files();
+				julia.update = 1;
+				ein.bookmark_count = 0;
+			} 
 			break;
 		case ':':
 			read_cmd();
