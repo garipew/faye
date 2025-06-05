@@ -41,10 +41,10 @@ int main(int argc, char** argv){
 	load_files();
 	int file_count = count_printable(julia.show_hidden);
 	draw();
-	do{
+	while((action = getch()) != 'q'){
 		file_count = update(action, file_count);
 		draw();
-	}while((action = getch()) != 'q');
+	}
 
 	endwin();
 	delscreen(faye_screen);

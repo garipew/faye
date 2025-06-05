@@ -172,7 +172,7 @@ void jump_to_child(){
 
 
 void jump_to_path(){
-	read_cmd();
+	read_cmd("-> ");
 	if(ed.buffer[0] == '/'){
 		strncpy(jet.cwd, ed.buffer, FAYE_PATH_MAX);
 	} else{
@@ -191,6 +191,7 @@ int update(int direction, int max){
 	int pid;
 	int c;
 	int abs;
+	char key[2] = {direction, 0};
 	switch(direction){
 		case 'F':
 			// free all bookmarks
@@ -218,7 +219,7 @@ int update(int direction, int max){
 			jump_to_path();
 			break;
 		case ':':
-			read_cmd();
+			read_cmd(":");
 			if(ed.buffer[0] == '!'){
 				endwin();
 				pid = fork();
@@ -257,6 +258,9 @@ int update(int direction, int max){
 			ein.bookmark_count = 0;
 			break;
 		default:
+			read_cmd(key);
+			memmove(ed.buffer+1, ed.buffer, ed.buffer_size-1);
+			ed.buffer[0] = key[0];
 			return max;
 	}
 	fc = fix_cursor();

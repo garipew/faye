@@ -22,7 +22,7 @@ int initialize_cmd(struct cmd* b){
 
 
 /* */
-void read_cmd(){
+void read_cmd(char* prefix){
 	char *new_buffer;
 	int character;
 
@@ -31,7 +31,7 @@ void read_cmd(){
 	nocbreak();
 	echo();
 	move(LINES-1, 0);
-	addch(':');
+	printw("%s", prefix);
 	while((character=getch()) != 0 && character != '\n'){
 		refresh();
 		if(ed.buffer_len >= ed.buffer_size){

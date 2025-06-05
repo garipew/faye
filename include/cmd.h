@@ -13,7 +13,7 @@ struct cmd{
 extern struct cmd ed;
 
 int initialize_cmd(struct cmd*);
-void read_cmd();
+void read_cmd(char*);
 int execute_cmd();
 void free_cmd(struct cmd*);
 #endif
