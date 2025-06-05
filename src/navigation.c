@@ -186,13 +186,55 @@ void jump_to_path(){
 }
 
 
+void bookmark(){
+	int abs = get_absolute(jet.selected, julia.show_hidden);
+	if(is_bookmarked(abs)){
+		return;
+	}
+	if(ein.bookmark_count < FAYE_BOOKMARKS){
+		ein.bookmarks[ein.bookmark_count++] = abs;
+	}else{
+		ein.bookmarks[0] = abs;
+	}
+}
+
+
+void toggle_hidden(){
+	julia.show_hidden = !julia.show_hidden;
+	julia.update = 1;
+	ein.bookmark_count = 0;
+}
+
+
+void execute_in_shell(){
+	endwin();
+	int c;
+	int pid = fork();
+	if(pid == 0){
+		chdir(jet.cwd);
+		dup2(fileno(faye_out), fileno(stdout));
+		execute_cmd();		
+		print_err("faye: Failed to execute %s\n", ed.buffer);
+		exit(-2);
+	} else if(pid > 0){
+		waitpid(pid, NULL, 0);
+		ein.bookmark_count = 0;
+		print_err("\n\nfaye: Press enter to return\n\n");
+		while((c = getchar()) != '\n' && c != EOF);
+	} else{
+		print_err("faye: Unable to fork\n");
+	}
+	refresh();
+}
+
+
 int update(int direction, int max){
 	int fc = -1;
-	int pid;
-	int c;
-	int abs;
 	char key[2] = {direction, 0};
 	switch(direction){
+		case 'b':
+			bookmark();
+			break;
 		case 'F':
 			// free all bookmarks
 			ein.bookmark_count = 0;
@@ -203,42 +245,17 @@ int update(int direction, int max){
 				ein.bookmark_count--;
 			}
 			break;
-		case 'b':
-			// bookmark file
-			abs = get_absolute(jet.selected, julia.show_hidden);
-			if(is_bookmarked(abs)){
-				break;
-			}
-			if(ein.bookmark_count < FAYE_BOOKMARKS){
-				ein.bookmarks[ein.bookmark_count++] = abs;
-			}else{
-				ein.bookmarks[0] = abs;
+		case ':':
+			read_cmd(":");
+			if(ed.buffer[0] == '!'){
+				execute_in_shell();
 			}
 			break;
 		case '/':
 			jump_to_path();
 			break;
-		case ':':
-			read_cmd(":");
-			if(ed.buffer[0] == '!'){
-				endwin();
-				pid = fork();
-				if(pid == 0){
-					chdir(jet.cwd);
-					dup2(fileno(faye_out), fileno(stdout));
-					execute_cmd();		
-					print_err("faye: Failed to execute %s\n", ed.buffer);
-					exit(-2);
-				} else if(pid > 0){
-					waitpid(pid, NULL, 0);
-					ein.bookmark_count = 0;
-					print_err("\n\nfaye: Press enter to return\n\n");
-					while((c = getchar()) != '\n' && c != EOF);
-				} else{
-					print_err("faye: Unable to fork\n");
-				}
-				refresh();
-			}
+		case 'h':
+			jump_to_parent();
 			break;
 		case 'j':
 			move_cursor_down(max);
@@ -249,13 +266,8 @@ int update(int direction, int max){
 		case 'l':
 			jump_to_child();
 			break;
-		case 'h':
-			jump_to_parent();
-			break;
 		case 's':
-			julia.show_hidden = !julia.show_hidden;
-			julia.update = 1;
-			ein.bookmark_count = 0;
+			toggle_hidden();
 			break;
 		default:
 			read_cmd(key);
